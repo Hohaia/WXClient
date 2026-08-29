@@ -9,18 +9,19 @@
 namespace ict
 {
     /* PRIVATE FUNCTIONS*/
-
     //clean up the host address (remove any leading "http://, https://, www.)
     std::string ControllerAPI::cleanAddress(const std::string& address)
     {
         std::string s = address;
         for (const auto& prefix : { std::string("https://"), std::string("http://"), std::string("www.") }) {
-            if (s.rfind(prefix, 0) == 0) {
+            if (s.rfind(prefix, 0) == 0)
+            {
                 s.erase(0, prefix.size());
                 break;
             }
         }
-        while (!s.empty() && s.back() == '/') {
+        while (!s.empty() && s.back() == '/')
+        {
             s.pop_back();
         }
         return s;
@@ -30,11 +31,27 @@ namespace ict
     std::array<std::uint8_t, 16> ControllerAPI::generateAesKey()
     {
         std::array<std::uint8_t, 16> key{};
-        if (RAND_bytes(key.data(), static_cast<int>(key.size())) != 1) {
+        if (RAND_bytes(key.data(), static_cast<int>(key.size())) != 1)
+        {
             throw std::runtime_error("Failed to generate AES key");
         }
-
         return key;
+    }
+
+    //create a sha1 checksum from a string
+    std::string ControllerAPI::sha1FromString(std::string inputString)
+    {
+        std::string result;
+
+        return result;
+    }
+
+    //calculate the XOR between a string and num
+    std::string ControllerAPI::xorFn(std::string inputString, int num)
+    {
+        std::string result;
+
+        return result;
     }
 
     //determine if outgoing requests need encryption
@@ -94,8 +111,8 @@ namespace ict
 
         return result;
     }
-
     //decrypt a string
+
     std::string ControllerAPI::decrypt(const std::string& parameters) const
     {
         std::string result;
@@ -103,24 +120,7 @@ namespace ict
         return result;
     }
 
-    //create a sha1 checksum from a string
-    static std::string sha1FromString(std::string inputString)
-    {
-        std::string result;
-
-        return result;
-    }
-
-    //calculate the XOR between a string and num
-    static std::string xorFn(std::string inputString, int num)
-    {
-        std::string result;
-
-        return result;
-    }
-
     /* PUBLIC FUNCTIONS*/
-
     //login to the WX controller
     bool login(std::string username, std::string pswHash)
     {

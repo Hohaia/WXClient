@@ -12,40 +12,37 @@
 namespace ict {
     class ControllerAPI {
     private:
-        //variables
-        const std::array<std::uint8_t, 16> m_aesKey = std::array<std::uint8_t, 16>{};
-        const std::string m_domain;
-        const std::string m_path;
-        const bool m_isHttps = false;
-        httplib::Client m_client = httplib::Client("");
-    protected:
-    public:
-        //constructors and deconstructors
-        ControllerAPI()
-            = default;
-        ControllerAPI(const std::string& address, const bool https)
-            : m_aesKey(generateAesKey())
-            , m_domain(cleanAddress(address))
-            , m_isHttps(https)
-            , m_client(createClient())
-            , m_path("/PRT_CTRL_DIN_ISAPI.dll?")
-        {
-        }
-        ~ControllerAPI()
-            = default;
-
-        //functions
-    private:
+        //static functions
         static std::string cleanAddress(const std::string& address);
-        std::array<std::uint8_t, 16> generateAesKey();
+        static std::array<std::uint8_t, 16> generateAesKey();
+        static std::string sha1FromString(std::string inputString);
+        static std::string xorFn(std::string inputString, int num);
+        //functions
         bool shouldEncrypt(const std::string& parameters) const;
         httplib::Client createClient() const;
         std::string getResponseString(std::string& parameters);
         std::string encrypt(const std::string& parameters) const;
         std::string decrypt(const std::string& parameters) const;
-        static std::string sha1FromString(std::string inputString);
-        static std::string xorFunc(std::string inputString, int num);
+        //variables
+        const std::array<std::uint8_t, 16> m_aesKey;
+        const std::string m_domain;
+        const std::string m_path;
+        const bool m_isHttps;
+        httplib::Client m_client;
+    protected:
     public:
+        //constructors and deconstructors
+        ControllerAPI(const std::string& address, const bool https)
+            : m_aesKey(generateAesKey())
+            , m_domain(cleanAddress(address))
+            , m_path("/PRT_CTRL_DIN_ISAPI.dll?")
+            , m_isHttps(https)
+            , m_client(createClient())
+        {
+        }
+        ~ControllerAPI()
+            = default;
+        //functions
         bool login(std::string username, std::string pswHash);
     };
 } // ICT

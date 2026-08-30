@@ -5,18 +5,21 @@
 #ifndef UNTITLED_CONTROLLERAPI_H
 #define UNTITLED_CONTROLLERAPI_H
 #include <string>
+#include <cstdint>
 #include <array>
 
 #include "httplib.h"
 
-namespace ict {
-    class ControllerAPI {
+namespace ict
+{
+    class ControllerAPI
+    {
     private:
         //static functions
         static std::string cleanAddress(const std::string& address);
         static std::array<std::uint8_t, 16> generateAesKey();
-        static std::string sha1FromString(std::string inputString);
-        static std::string xorFn(std::string inputString, int num);
+        static std::string sha1FromString(const std::string& inputString);
+        static std::string xorFn(const std::string& inputString, const std::uint32_t& num);
         //functions
         bool shouldEncrypt(const std::string& parameters) const;
         httplib::Client createClient() const;
@@ -43,7 +46,7 @@ namespace ict {
         ~ControllerAPI()
             = default;
         //functions
-        bool login(std::string username, std::string pswHash);
+        bool login(const std::string& username, const std::string& pswHash);
     };
 } // ICT
 

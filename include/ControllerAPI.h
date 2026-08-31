@@ -5,7 +5,6 @@
 #ifndef UNTITLED_CONTROLLERAPI_H
 #define UNTITLED_CONTROLLERAPI_H
 #include <string>
-#include <cstdint>
 #include <array>
 
 #include "httplib.h"
@@ -18,8 +17,9 @@ namespace ict
         //static functions
         static std::string cleanAddress(const std::string& address);
         static std::array<std::uint8_t, 16> generateAesKey();
-        static std::string sha1FromString(const std::string& inputString);
         static std::string xorFn(const std::string& inputString, const std::uint32_t& num);
+        static std::vector<std::uint8_t> hexToBytes(const std::string& hexStr);
+        static std::string toHex(const std::vector<std::uint8_t>& bytes);
         //functions
         bool shouldEncrypt(const std::string& parameters) const;
         httplib::Client createClient() const;
@@ -27,7 +27,7 @@ namespace ict
         std::string encrypt(const std::string& parameters) const;
         std::string decrypt(const std::string& parameters) const;
         //variables
-        const std::array<std::uint8_t, 16> m_aesKey;
+        std::array<std::uint8_t, 16> m_aesKey;
         const std::string m_domain;
         const std::string m_path;
         const bool m_isHttps;
@@ -46,7 +46,9 @@ namespace ict
         ~ControllerAPI()
             = default;
         //functions
+        static std::string sha1FromString(const std::string& inputString);
         bool login(const std::string& username, const std::string& pswHash);
+        bool logout();
     };
 } // ICT
 

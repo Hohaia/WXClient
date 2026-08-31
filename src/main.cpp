@@ -33,6 +33,9 @@ int main()
     std::cin >> pass;
 
     ict::ControllerAPI wx(domain, isHttps);
+    const std::string pswHash = ict::ControllerAPI::sha1FromString(pass);
+
+    wx.login(user, pswHash);
 
     return(0);
 }

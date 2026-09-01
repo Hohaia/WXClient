@@ -16,7 +16,6 @@ namespace ict
     private:
         //static functions
         static std::string cleanAddress(const std::string& address);
-        static std::array<std::uint8_t, 16> generateAesKey();
         static std::string xorFn(const std::string& inputString, const std::uint32_t& num);
         static std::vector<std::uint8_t> hexToBytes(const std::string& hexStr);
         static std::string toHex(const std::vector<std::uint8_t>& bytes);
@@ -36,8 +35,7 @@ namespace ict
     public:
         //constructors and deconstructors
         ControllerAPI(const std::string& address, const bool https)
-            : m_aesKey(generateAesKey())
-            , m_domain(cleanAddress(address))
+            : m_domain(cleanAddress(address))
             , m_path("/PRT_CTRL_DIN_ISAPI.dll?")
             , m_isHttps(https)
             , m_client(createClient())

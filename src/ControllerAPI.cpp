@@ -36,17 +36,6 @@ namespace ict
         return s;
     }
 
-    //generate a random 16byte AES key
-    std::array<std::uint8_t, 16> ControllerAPI::generateAesKey()
-    {
-        std::array<std::uint8_t, 16> key{};
-        if (RAND_bytes(key.data(), static_cast<int>(key.size())) != 1)
-        {
-            throw std::runtime_error("Failed to generate AES key");
-        }
-        return key;
-    }
-
     //calculate the XOR between a string and num
     std::string ControllerAPI::xorFn(const std::string& inputString,const std::uint32_t& num)
     {
@@ -278,6 +267,7 @@ namespace ict
         const std::string sessionRandIdString2 = getResponseString(parameters);
         if (sessionRandIdString2.rfind("FAIL", 0) == 0)
         {
+            std::cout << "Error in authentication: " << sessionRandIdString2 << std::endl;
             return false;
         }
         if (!m_isHttps)
@@ -285,8 +275,12 @@ namespace ict
             const auto sessionRandIdValue2 = static_cast<std::uint32_t>(std::stoul(sessionRandIdString2));
             const std::string xorPasswordHash2 = xorFn(pswHash, sessionRandIdValue2);
             const std::string hashXorPasswordHash2 = sha1FromString(xorPasswordHash2);
-            const auto sessionKeyBytes = hexToBytes(hashXorPasswordHash2.substr(0, 16));
-            std::ranges::copy(sessionKeyBytes, m_aesKey.begin());
+            const std::string sessionKeyString = hashXorPasswordHash2.substr(0, 16);
+            if (sessionKeyString.size() != 16) {
+                throw std::runtime_error("Invalid session key length");
+            }
+
+            std::ranges::copy(sessionKeyString, m_aesKey.begin());
         }
         return true;
     }
@@ -294,7 +288,15 @@ namespace ict
     //log out of the WX controller
     bool ControllerAPI::logout()
     {
-        //TODO
-        return false;
+        try
+        {
+            std::string parameters = "Command&Type=Session&SubType=CloseSession";
+            getResponseString(parameters);
+            return true;
+        }
+        catch (const std::exception&)
+        {
+            return false;
+        }
     }
 } // ICT

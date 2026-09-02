@@ -6,6 +6,7 @@
 #include <bitset>
 #include <cstdint>
 #include <iomanip>
+#include <iostream>
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 #include <sstream>
@@ -14,6 +15,7 @@
 #include <vector>
 
 #include "ControllerAPI.h"
+#include "helpers.h"
 
 namespace ict
 {
@@ -54,32 +56,6 @@ namespace ict
                 << std::setw(2)
                 << std::setfill('0')
                 << (static_cast<unsigned int>(ch) ^ byteVal);
-        }
-        return oss.str();
-    }
-
-    //convert a hex string to a byte string
-    std::vector<std::uint8_t> ControllerAPI::hexToBytes(const std::string& hexStr)
-    {
-        std::vector<std::uint8_t> bytes;
-        bytes.reserve(hexStr.size() / 2);
-
-        for (std::size_t i = 0; i < hexStr.size(); i += 2)
-        {
-            const std::string byteStr = hexStr.substr(i, 2);
-            bytes.push_back(static_cast<std::uint8_t>(std::stoi(byteStr, nullptr, 16)));
-        }
-
-        return bytes;
-    }
-
-    //convert a byte string to a hex string
-    std::string ControllerAPI::toHex(const std::vector<std::uint8_t>& bytes)
-    {
-        std::ostringstream oss;
-        for (const auto& byte : bytes)
-        {
-            oss << std::hex << std::setw(2) << std::setfill('0') << byte;
         }
         return oss.str();
     }
@@ -189,8 +165,8 @@ namespace ict
         }
         const std::string ivStr = parameters.substr(0, 32);
         const std::string encryptedStr = parameters.substr(32);
-        const auto iv = hexToBytes(ivStr);
-        const auto encryptedBytes = hexToBytes(encryptedStr);
+        const auto iv = fromHex(ivStr);
+        const auto encryptedBytes = fromHex(encryptedStr);
         EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
         if (!ctx)
         {

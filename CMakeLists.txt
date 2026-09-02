@@ -6,6 +6,9 @@ set(CMAKE_CXX_STANDARD 20)
 add_executable(WXClient
         src/main.cpp
         src/ControllerAPI.cpp
+        src/helpers.cpp
+        include/ControllerAPI.h
+        include/helpers.h
 )
 
 target_include_directories(WXClient PRIVATE

@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+std::string trim(const std::string& str);
 std::string toHex(const std::vector<std::uint8_t>& bytes);
 std::vector<std::uint8_t> fromHex(const std::string& hexStr);
 

@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <cctype>
 #include <iostream>
 
 #include "ControllerAPI.h"
@@ -32,13 +34,31 @@ int main()
     std::cout << "\nPassword: ";
     std::cin >> pass;
 
-    ict::ControllerAPI wx(domain, isHttps);
-    auto pswHash = ict::ControllerAPI::sha1FromString(pass);
-    std::ranges::transform(pswHash, pswHash.begin(),
-                           [](const unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+    try
+    {
+        ict::ControllerAPI wx(domain, isHttps);
+        auto pswHash = ict::ControllerAPI::sha1FromString(pass);
+        std::ranges::transform(pswHash, pswHash.begin(),
+                               [](const unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
 
-    wx.login(user, pswHash);
-    wx.logout();
+        if (!wx.login(user, pswHash))
+        {
+            std::cout << "\nFailed to log in." << std::endl;
+            return 1;
+        }
+        std::cout << "\nLogged in." << std::endl;
 
-    return(0);
+        // TODO: controller queries go here, e.g.
+        //   const auto settings = wx.getControllerSettings();
+        //   std::cout << "Serial: " << settings.at("SERIALNUMBER") << std::endl;
+
+        // the session is closed by ControllerAPI's destructor when wx goes out of scope
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << "\nError: " << e.what() << std::endl;
+        return 1;
+    }
+
+    return 0;
 }

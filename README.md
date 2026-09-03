@@ -1,6 +1,6 @@
 # WXClient
 
-A C++ client for the ICT Protege WX access controller HTTP API, exposed by the
+A C++ client for the ICT Protege WX door controller HTTP API, exposed by the
 controller as `PRT_CTRL_DIN_ISAPI.dll`.
 
 ## Status
@@ -17,6 +17,8 @@ Authentication and session management are implemented. Data queries are not yet
 | C++ compiler | C++20 | uses `std::ranges`, `starts_with`, `std::from_chars` |
 | OpenSSL | any recent | resolved via `find_package(OpenSSL REQUIRED)` |
 | cpp-httplib | 0.53.1 | **vendored** at `include/httplib.h`, no download needed |
+| POSIX terminal | — | `console.cpp` uses `termios`; Linux and macOS only |
+
 `CPPHTTPLIB_OPENSSL_SUPPORT` is defined in `CMakeLists.txt`. Without it,
 httplib rejects `https://` URLs at runtime rather than at compile time.
 
@@ -43,11 +45,16 @@ cmake --build build
 The client prompts for four values:
 
 ```
-IP/Domain:   192.168.1.2      # scheme prefix optional, stripped if present
-Https? (y/n): n
+IP/Domain:   192.168.1.2      # scheme prefix optional; append :port if non-standard
+Https? (y/n): y
 Username:    admin
-Password:    <plain text, echoed to the terminal>
+Password:                     # not echoed
 ```
+
+Answer `Https?` to match how the controller actually serves its web interface.
+Getting it wrong is the most common cause of a connection failure — see
+[Troubleshooting](#troubleshooting). Invalid `y`/`n` answers re-prompt; end of
+input (Ctrl+D) aborts with an error rather than continuing with empty values.
 
 ## How authentication works
 
@@ -83,10 +90,10 @@ released on every exit path including exception unwinding.
   the vendor sample. Controllers ship self-signed certificates. This means HTTPS
   mode is not protected against an active man-in-the-middle. Pin the
   controller's certificate before treating HTTPS mode as trusted.
-- **The password is echoed** while typing — `main.cpp` reads it with
-  `std::cin`. Fine for local testing, not for shared terminals.
 - Over HTTP the AES session key is derived from the password hash. It protects
   request parameters from casual inspection but is not a substitute for TLS.
+- The password is read without terminal echo and is never written to output.
+  Error messages carry controller responses only, never request parameters.
 
 ## Login errors
 
@@ -101,16 +108,38 @@ The controller returns failures as plain text, all beginning with `FAIL`:
 
 The client prints the response verbatim, so the backoff period is visible.
 
+## Troubleshooting
+
+| Message | Cause |
+| --- | --- |
+| `Could not reach controller: Connection` | Nothing listening on that host and port. Usually the wrong answer to `Https?` — `http://` targets port 80, `https://` targets 443. Also check for a non-standard port. |
+| `Could not reach controller: SSLConnection` | Answered `y` but the TLS handshake failed. |
+| `Could not reach controller: Read` / `Write` | Connected, then timed out. Timeouts are 5 seconds, set in `createClient()`. |
+| `Controller returned HTTP <status>` | The web server answered and rejected the request. The transport is fine; the request form or path is not. |
+| `Unexpected session ID response` | A session request returned something other than a number — check the raw response quoted in the message. |
+
+`InitSession` needs neither authentication nor encryption, so it can be tested
+directly to isolate transport problems from protocol ones:
+
+```sh
+curl -vk "https://192.168.1.2/PRT_CTRL_DIN_ISAPI.dll?Command&Type=Session&SubType=InitSession"
+```
+
+A bare number in the response body means the transport and request form are
+correct. `-v` also shows the `Set-Cookie` header.
+
 ## Layout
 
 ```
 include/
   ControllerAPI.h    controller client interface
+  console.h          terminal prompts and non-echoing password entry
   helpers.h          hex conversion and string trimming
   httplib.h          vendored cpp-httplib 0.53.1
 src/
   main.cpp           interactive entry point
   ControllerAPI.cpp  authentication, session, AES payload handling
+  console.cpp        terminal input
   helpers.cpp        shared helpers
 ```
 
@@ -118,7 +147,7 @@ src/
 
 - Data queries, starting with `Request&Type=Detail&SubType=GXT_CONTROLLERSETTINGS_TBL`
   for controller details such as `SERIALNUMBER`. This is also the first request
-  to exercise the AES encrypt/decrypt path, which is currently untested against
-  real hardware.
+  to exercise the AES encrypt/decrypt path, which is currently untested — and
+  is bypassed entirely when connecting over HTTPS.
 - A parser for the `key=value&...` response format, with percent-decoding.
-- Non-echoing password entry.
+- Windows support: `console.cpp` depends on `termios`.

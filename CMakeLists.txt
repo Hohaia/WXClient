@@ -6,8 +6,10 @@ set(CMAKE_CXX_STANDARD 20)
 add_executable(WXClient
         src/main.cpp
         src/ControllerAPI.cpp
+        src/console.cpp
         src/helpers.cpp
         include/ControllerAPI.h
+        include/console.h
         include/helpers.h
 )
 

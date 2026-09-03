@@ -2,7 +2,6 @@
 // Created by hohaia on 23/08/2026.
 //
 #include <algorithm>
-#include <array>
 #include <bitset>
 #include <charconv>
 #include <cstdint>
@@ -12,7 +11,6 @@
 #include <openssl/rand.h>
 #include <sstream>
 #include <stdexcept>
-#include <string>
 #include <vector>
 
 #include "ControllerAPI.h"
@@ -138,9 +136,17 @@ namespace ict
             headers.emplace("Cookie", m_sessionCookie);
         }
         auto result = m_client.Post(m_path + parameters, headers);
-        if (!result || result->status != 200)
+        if (!result)
         {
-            throw std::runtime_error("Failed to POST to controller");
+            throw std::runtime_error("Could not reach controller: "
+                + httplib::to_string(result.error()));
+        }
+        if (result->status != 200)
+        {
+            const std::string body = trim(result->body);
+            throw std::runtime_error("Controller returned HTTP "
+                + std::to_string(result->status) + ": "
+                + (body.size() > 200 ? body.substr(0, 200) + "..." : body));
         }
         if (result->has_header("Set-Cookie"))
         {

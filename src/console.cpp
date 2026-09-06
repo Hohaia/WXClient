@@ -101,7 +101,15 @@ std::string readPassword(const std::string& prompt)
         discardPendingNewline();
         password = readLineOrThrow();
     }
-
     std::cout << std::endl;
     return password;
+}
+
+// print a table
+void printTable(const std::multimap<std::string, std::string>& table)
+{
+    for (const auto& [key, value] : table)
+    {
+        std::cout << key << ": " << value << "\n";
+    }
 }

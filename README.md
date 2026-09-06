@@ -5,8 +5,9 @@ controller as `PRT_CTRL_DIN_ISAPI.dll`.
 
 ## Status
 
-Authentication and session management are implemented. Data queries are not yet
-— `main.cpp` logs in, reports success, and closes the session. See
+Authentication, session management, and the first data query are implemented.
+`main.cpp` logs in, fetches the controller settings table, prints it, and closes
+the session. Both firmware authentication flows are supported. See
 [Roadmap](#roadmap).
 
 ## Requirements
@@ -24,10 +25,17 @@ httplib rejects `https://` URLs at runtime rather than at compile time.
 
 ## Controller firmware
 
-This client implements the **server-side** authentication flow, which requires
-**Protege WX firmware 4.00.1676 or higher**. Controllers on older firmware use a
-different client-side flow that this client does not implement, and will fail to
-authenticate regardless of correct credentials.
+Two authentication flows exist, and the client asks which one to use:
+
+- **Firmware 4.00.1676 or higher** — answer `n` to the pre-4.00.1676 prompt. The
+  session is identified solely by the cookie from `Set-Cookie`.
+- **Firmware before 4.00.1676** — answer `y`. The client also generates a random
+  32-character hex session ID, appends it to `InitSession` and `CheckPassword`
+  as `&SessionID=`, appends an incrementing `&Sequence=` to each later request,
+  and prepends the session ID to the request string once logged in.
+
+Answering this prompt wrongly fails authentication regardless of correct
+credentials.
 
 ## Building
 
@@ -42,13 +50,14 @@ cmake --build build
 ./build/WXClient
 ```
 
-The client prompts for four values:
+The client prompts for five values, in this order:
 
 ```
 IP/Domain:   192.168.1.2      # scheme prefix optional; append :port if non-standard
-Https? (y/n): y
 Username:    admin
 Password:                     # not echoed
+Https? (y/n): y
+Is the controller firmware pre 4.00.1676? (y/n): n
 ```
 
 Answer `Https?` to match how the controller actually serves its web interface.
@@ -76,9 +85,15 @@ From there the transports diverge:
   confidentiality, so no AES key is derived and parameters are sent in plain
   text. The second random number is returned but unused.
 
+On firmware before 4.00.1676 the controller also expects a client-generated
+session ID and a monotonic sequence number, added in
+`ControllerAPI::buildRequestParameters`. The session ID is prepended to the
+request string *after* encryption, so the controller can read it without the
+key.
+
 The session cookie is captured from the first response and replayed on every
 subsequent request. cpp-httplib has no cookie jar, so this is handled manually
-in `ControllerAPI::getResponseString` — unlike .NET's `HttpClient`, which does
+in `ControllerAPI::sendRequest` — unlike .NET's `HttpClient`, which does
 it transparently.
 
 `CloseSession` is issued by `ControllerAPI`'s destructor, so the session is
@@ -90,7 +105,9 @@ released on every exit path including exception unwinding.
   the vendor sample. Controllers ship self-signed certificates. This means HTTPS
   mode is not protected against an active man-in-the-middle. Pin the
   controller's certificate before treating HTTPS mode as trusted.
-- Over HTTP the AES session key is derived from the password hash. It protects
+- Over HTTP the AES session key is derived from the password hash, and the 16
+  key bytes are hex *characters* rather than decoded bytes — about 64 bits of
+  entropy in a 128-bit key. That is what the firmware expects. It protects
   request parameters from casual inspection but is not a substitute for TLS.
 - The password is read without terminal echo and is never written to output.
   Error messages carry controller responses only, never request parameters.
@@ -117,6 +134,8 @@ The client prints the response verbatim, so the backoff period is visible.
 | `Could not reach controller: Read` / `Write` | Connected, then timed out. Timeouts are 5 seconds, set in `createClient()`. |
 | `Controller returned HTTP <status>` | The web server answered and rejected the request. The transport is fine; the request form or path is not. |
 | `Unexpected session ID response` | A session request returned something other than a number — check the raw response quoted in the message. |
+| `Failed to finalize decryption` | `decrypt()` could not unpad the reply — usually a session key mismatch, e.g. the wrong answer to the firmware prompt. |
+| `Error in getting controller settings: FAIL…` | Logged in, but the query was rejected. Printed rather than thrown; an empty table is returned. |
 
 `InitSession` needs neither authentication nor encryption, so it can be tested
 directly to isolate transport problems from protocol ones:
@@ -133,8 +152,8 @@ correct. `-v` also shows the `Set-Cookie` header.
 ```
 include/
   ControllerAPI.h    controller client interface
-  console.h          terminal prompts and non-echoing password entry
-  helpers.h          hex conversion and string trimming
+  console.h          terminal prompts, non-echoing password entry, table output
+  helpers.h          hex conversion, trimming, query-string parsing, URL decoding
   httplib.h          vendored cpp-httplib 0.53.1
 src/
   main.cpp           interactive entry point
@@ -145,9 +164,7 @@ src/
 
 ## Roadmap
 
-- Data queries, starting with `Request&Type=Detail&SubType=GXT_CONTROLLERSETTINGS_TBL`
-  for controller details such as `SERIALNUMBER`. This is also the first request
-  to exercise the AES encrypt/decrypt path, which is currently untested — and
-  is bypassed entirely when connecting over HTTPS.
-- A parser for the `key=value&...` response format, with percent-decoding.
+- Further data queries beyond `GXT_CONTROLLERSETTINGS_TBL` — events, doors, users.
 - Windows support: `console.cpp` depends on `termios`.
+- Hardware verification of the pre-4.00.1676 flow; the session-ID and
+  sequence-number handling is implemented but untested.

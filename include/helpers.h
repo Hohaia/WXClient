@@ -5,11 +5,14 @@
 #define WXCLIENT_HELPERS_H
 
 #include <cstdint>
+#include <map>
 #include <string>
 #include <vector>
 
 std::string trim(const std::string& str);
 std::string toHex(const std::vector<std::uint8_t>& bytes);
 std::vector<std::uint8_t> fromHex(const std::string& hexStr);
+std::string urlDecode(const std::string& str);
+std::multimap<std::string, std::string> parseQueryString(const std::string& query);
 
 #endif //WXCLIENT_HELPERS_H

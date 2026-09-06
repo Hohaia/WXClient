@@ -38,7 +38,7 @@ namespace ict
     }
 
     //calculate the XOR between a string and num
-    std::string ControllerAPI::xorFn(const std::string& inputString,const std::uint32_t& num)
+    std::string ControllerAPI::xorToHex(const std::string& inputString,const std::uint32_t& num)
     {
         const std::bitset<32> bits(num);
         const std::string key = bits.to_string();
@@ -68,37 +68,43 @@ namespace ict
     //parse a session random ID from a controller response
     std::uint32_t ControllerAPI::parseSessionRandId(const std::string& response)
     {
-        const std::string trimmed = trim(response);
+        const std::string trimmedResponse = trim(response);
         std::uint32_t value = 0;
-        const auto* const end = trimmed.data() + trimmed.size();
-        const auto [ptr, ec] = std::from_chars(trimmed.data(), end, value);
+        const auto* const end = trimmedResponse.data() + trimmedResponse.size();
+        const auto [ptr, ec] = std::from_chars(trimmedResponse.data(), end, value);
         if (ec != std::errc{} || ptr != end)
         {
-            throw std::runtime_error("Unexpected session ID response: " + trimmed);
+            throw std::runtime_error("Unexpected session ID response: " + trimmedResponse);
         }
         return value;
     }
 
     //extract the name=value pair from a Set-Cookie header value
-    std::string ControllerAPI::cookieFromSetCookie(const std::string& setCookie)
+    std::string ControllerAPI::parseCookiePair(const std::string& setCookie)
     {
         const auto attributes = setCookie.find(';');
         return trim(attributes == std::string::npos ? setCookie : setCookie.substr(0, attributes));
     }
 
     //determine if outgoing requests need encryption
-    bool ControllerAPI::shouldEncrypt(const std::string& parameters) const
+    bool ControllerAPI::shouldEncrypt() const
     {
-        if (m_isHttps)
-        {
-            return false;
-        }
-        if (parameters.starts_with("Command&Type=Session&SubType=InitSession")
-            || parameters.starts_with("Command&Type=Session&SubType=CheckPassword"))
+        if (!m_loggedIn || m_isHttps)
         {
             return false;
         }
         return true;
+    }
+
+    //generate a random 32 character hex session id (for controller firmware pre 4.00.1676)
+    std::string ControllerAPI::generateSessionId()
+    {
+        std::vector<std::uint8_t> bytes(16);
+        if (RAND_bytes(bytes.data(), static_cast<int>(bytes.size())) != 1)
+        {
+            throw std::runtime_error("Failed to generate session ID");
+        }
+        return toHex(bytes);
     }
 
     //create the http client
@@ -113,7 +119,7 @@ namespace ict
         {
             httpsYN = "http";
         }
-        const std::string cliDomain = httpsYN + "://" + m_domain + "/";
+        const std::string cliDomain = httpsYN + "://" + m_host + "/";
         httplib::Client cli(cliDomain);
         cli.enable_server_certificate_verification(false);
         cli.set_connection_timeout(5);
@@ -122,13 +128,38 @@ namespace ict
         return cli;
     }
 
-    //perform a POST request and read the response as a string
-    std::string ControllerAPI::getResponseString(std::string& parameters)
+    //build the request parameters depending on WX Controllers firmware version
+    std::string ControllerAPI::buildRequestParameters(std::string& parameters) const
     {
+        if (!m_useSessionId)
+        {
+            return parameters;
+        }
+        if (parameters.starts_with("Command&Type=Session&SubType=InitSession")
+            || parameters.starts_with("Command&Type=Session&SubType=CheckPassword"))
+        {
+            parameters = parameters + "&SessionID=" + m_sessionId;
+            return parameters;
+        }
+        const std::string seqNum = std::to_string(m_sequenceNumber);
+        parameters = parameters + "&Sequence=" + seqNum;
+
+        return parameters;
+    }
+
+    //perform a POST request and read the response as a string
+    std::string ControllerAPI::sendRequest(std::string& parameters)
+    {
+        const bool loggingOut = parameters.starts_with("Command&Type=Session&SubType=CloseSession");
+        parameters = buildRequestParameters(parameters);
         const bool encryptParameters = shouldEncrypt(parameters);
         if (encryptParameters)
         {
             parameters = encrypt(parameters);
+        }
+        if (m_loggedIn && m_useSessionId)
+        {
+            parameters = m_sessionId + parameters;
         }
         httplib::Headers headers;
         if (!m_sessionCookie.empty())
@@ -150,13 +181,14 @@ namespace ict
         }
         if (result->has_header("Set-Cookie"))
         {
-            m_sessionCookie = cookieFromSetCookie(result->get_header_value("Set-Cookie"));
+            m_sessionCookie = parseCookiePair(result->get_header_value("Set-Cookie"));
         }
         std::string response = result->body;
-        if (encryptParameters)
+        if (!loggingOut && encryptParameters)
         {
             response = decrypt(response);
         }
+        if (m_loggedIn) {m_sequenceNumber += 1;}
         return response;
     }
 
@@ -204,10 +236,6 @@ namespace ict
     //decrypt a string
     std::string ControllerAPI::decrypt(const std::string& parameters) const
     {
-        if (parameters.size() < 32)
-        {
-            throw std::runtime_error("Invalid encrypted payload");
-        }
         const std::string ivStr = parameters.substr(0, 32);
         const std::string encryptedStr = parameters.substr(32);
         const auto iv = fromHex(ivStr);
@@ -234,7 +262,7 @@ namespace ict
         if (EVP_DecryptFinal_ex(ctx, decryptedBytes.data() + decryptedLength, &finalLength) != 1)
         {
             EVP_CIPHER_CTX_free(ctx);
-            throw std::runtime_error("Failed to finalize encryption");
+            throw std::runtime_error("Failed to finalize decryption");
         }
         EVP_CIPHER_CTX_free(ctx);
         decryptedLength += finalLength;
@@ -250,7 +278,7 @@ namespace ict
     }
 
     //create a sha1 checksum from a string
-    std::string ControllerAPI::sha1FromString(const std::string& inputString)
+    std::string ControllerAPI::sha1Hex(const std::string& inputString)
     {
         unsigned char digest[EVP_MAX_MD_SIZE];
         unsigned int digestLength = 0;
@@ -281,7 +309,7 @@ namespace ict
     bool ControllerAPI::login(const std::string& username, const std::string& pswHash)
     {
         std::string parameters = "Command&Type=Session&SubType=InitSession";
-        const std::string sessionRandIdString = getResponseString(parameters);
+        const std::string sessionRandIdString = sendRequest(parameters);
         if (isFailResponse(sessionRandIdString))
         {
             std::cout << "Error initialising session: " << trim(sessionRandIdString) << std::endl;
@@ -289,17 +317,17 @@ namespace ict
         }
         const std::uint32_t sessionRandIdValue = parseSessionRandId(sessionRandIdString);
 
-        const std::string xorUsername = xorFn(username, sessionRandIdValue + 1u);
-        const std::string hashXorUsername = sha1FromString(xorUsername);
+        const std::string xorUsername = xorToHex(username, sessionRandIdValue + 1u);
+        const std::string hashXorUsername = sha1Hex(xorUsername);
 
-        const std::string xorPasswordHash = xorFn(pswHash, sessionRandIdValue);
-        const std::string hashXorPasswordHash = sha1FromString(xorPasswordHash);
+        const std::string xorPasswordHash = xorToHex(pswHash, sessionRandIdValue);
+        const std::string hashXorPasswordHash = sha1Hex(xorPasswordHash);
         const std::string checkPasswordFunction = m_isHttps ? "CheckPasswordServer" : "CheckPassword";
         parameters = "Command&Type=Session&SubType=" + checkPasswordFunction
             + "&Name=" + hashXorUsername
             + "&Password=" + hashXorPasswordHash;
 
-        const std::string sessionRandIdString2 = getResponseString(parameters);
+        const std::string sessionRandIdString2 = sendRequest(parameters);
         if (isFailResponse(sessionRandIdString2))
         {
             std::cout << "Error in authentication: " << trim(sessionRandIdString2) << std::endl;
@@ -308,8 +336,8 @@ namespace ict
         if (!m_isHttps)
         {
             const std::uint32_t sessionRandIdValue2 = parseSessionRandId(sessionRandIdString2);
-            const std::string xorPasswordHash2 = xorFn(pswHash, sessionRandIdValue2);
-            const std::string hashXorPasswordHash2 = sha1FromString(xorPasswordHash2);
+            const std::string xorPasswordHash2 = xorToHex(pswHash, sessionRandIdValue2);
+            const std::string hashXorPasswordHash2 = sha1Hex(xorPasswordHash2);
             if (hashXorPasswordHash2.size() < 16)
             {
                 throw std::runtime_error("Invalid session key length");
@@ -327,19 +355,32 @@ namespace ict
         {
             return true;
         }
-        m_loggedIn = false;
         bool closed = false;
         try
         {
             std::string parameters = "Command&Type=Session&SubType=CloseSession";
-            getResponseString(parameters);
+            sendRequest(parameters);
             closed = true;
         }
         catch (...)
         {
         }
+        m_loggedIn = false;
         m_sessionCookie.clear();
         m_aesKey = {};
         return closed;
+    }
+
+    //retrieve the controllers settings
+    std::multimap<std::string, std::string> ControllerAPI::fetchControllerSettings()
+    {
+        std::string parameters = "Request&Type=Detail&SubType=GXT_CONTROLLERSETTINGS_TBL";
+        const std::string list = sendRequest(parameters);
+        if (isFailResponse(list))
+        {
+            std::cout << "Error in getting controller settings: " << trim(list) + "\n";
+            return {};
+        }
+        return parseQueryString(trim(list));
     }
 } // ICT

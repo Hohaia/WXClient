@@ -80,10 +80,10 @@ namespace ict
     }
 
     //extract the name=value pair from a Set-Cookie header value
-    std::string ControllerAPI::parseCookiePair(const std::string& setCookie)
+    std::string ControllerAPI::parseCookiePair(const std::string& setCookieHeader)
     {
-        const auto attributes = setCookie.find(';');
-        return trim(attributes == std::string::npos ? setCookie : setCookie.substr(0, attributes));
+        const auto attributes = setCookieHeader.find(';');
+        return trim(attributes == std::string::npos ? setCookieHeader : setCookieHeader.substr(0, attributes));
     }
 
     //determine if outgoing requests need encryption
@@ -128,45 +128,45 @@ namespace ict
         return cli;
     }
 
-    //build the request parameters depending on WX Controllers firmware version
-    std::string ControllerAPI::buildRequestParameters(std::string& parameters) const
+    //build the request requestString depending on WX Controllers firmware version
+    std::string ControllerAPI::buildRequestString(std::string& requestString) const
     {
-        if (!m_useSessionId)
+        if (!m_needsClientSessionId)
         {
-            return parameters;
+            return requestString;
         }
-        if (parameters.starts_with("Command&Type=Session&SubType=InitSession")
-            || parameters.starts_with("Command&Type=Session&SubType=CheckPassword"))
+        if (requestString.starts_with("Command&Type=Session&SubType=InitSession")
+            || requestString.starts_with("Command&Type=Session&SubType=CheckPassword"))
         {
-            parameters = parameters + "&SessionID=" + m_sessionId;
-            return parameters;
+            requestString = requestString + "&SessionID=" + m_clientSessionId;
+            return requestString;
         }
         const std::string seqNum = std::to_string(m_sequenceNumber);
-        parameters = parameters + "&Sequence=" + seqNum;
+        requestString = requestString + "&Sequence=" + seqNum;
 
-        return parameters;
+        return requestString;
     }
 
     //perform a POST request and read the response as a string
-    std::string ControllerAPI::sendRequest(std::string& parameters)
+    std::string ControllerAPI::sendRequest(std::string& requestString)
     {
-        const bool loggingOut = parameters.starts_with("Command&Type=Session&SubType=CloseSession");
-        parameters = buildRequestParameters(parameters);
-        const bool encryptParameters = shouldEncrypt(parameters);
+        const bool loggingOut = requestString.starts_with("Command&Type=Session&SubType=CloseSession");
+        requestString = buildRequestString(requestString);
+        const bool encryptParameters = shouldEncrypt();
         if (encryptParameters)
         {
-            parameters = encrypt(parameters);
+            requestString = encrypt(requestString);
         }
-        if (m_loggedIn && m_useSessionId)
+        if (m_loggedIn && m_needsClientSessionId)
         {
-            parameters = m_sessionId + parameters;
+            requestString = m_clientSessionId + requestString;
         }
         httplib::Headers headers;
         if (!m_sessionCookie.empty())
         {
             headers.emplace("Cookie", m_sessionCookie);
         }
-        auto result = m_client.Post(m_path + parameters, headers);
+        auto result = m_client.Post(m_path + requestString, headers);
         if (!result)
         {
             throw std::runtime_error("Could not reach controller: "
@@ -193,7 +193,7 @@ namespace ict
     }
 
     //encrypt a string
-    std::string ControllerAPI::encrypt(const std::string& parameters) const
+    std::string ControllerAPI::encrypt(const std::string& requestString) const
     {
         EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
         if (!ctx)
@@ -211,11 +211,11 @@ namespace ict
             EVP_CIPHER_CTX_free(ctx);
             throw std::runtime_error("Failed to initialize encryption");
         }
-        std::vector<std::uint8_t> encryptedBytes(parameters.size() + 16);
+        std::vector<std::uint8_t> encryptedBytes(requestString.size() + 16);
         int encryptedLength = 0;
         if (EVP_EncryptUpdate(ctx, encryptedBytes.data(), &encryptedLength
-                                , reinterpret_cast<const unsigned char*>(parameters.data())
-                                , static_cast<int>(parameters.size())) != 1)
+                                , reinterpret_cast<const unsigned char*>(requestString.data())
+                                , static_cast<int>(requestString.size())) != 1)
         {
             EVP_CIPHER_CTX_free(ctx);
             throw std::runtime_error("Failed to encrypt data");
@@ -234,10 +234,10 @@ namespace ict
     }
 
     //decrypt a string
-    std::string ControllerAPI::decrypt(const std::string& parameters) const
+    std::string ControllerAPI::decrypt(const std::string& encryptedResponse) const
     {
-        const std::string ivStr = parameters.substr(0, 32);
-        const std::string encryptedStr = parameters.substr(32);
+        const std::string ivStr = encryptedResponse.substr(0, 32);
+        const std::string encryptedStr = encryptedResponse.substr(32);
         const auto iv = fromHex(ivStr);
         const auto encryptedBytes = fromHex(encryptedStr);
         EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
@@ -306,10 +306,17 @@ namespace ict
     }
 
     //login to the WX controller
-    bool ControllerAPI::login(const std::string& username, const std::string& pswHash)
+    bool ControllerAPI::login(const std::string& userName, const std::string& passwordHash)
     {
         std::string parameters = "Command&Type=Session&SubType=InitSession";
-        const std::string sessionRandIdString = sendRequest(parameters);
+        std::string sessionRandIdString = sendRequest(parameters);
+        if (isFailResponse(sessionRandIdString))
+        {
+            std::cout << "Error initialising session: " << trim(sessionRandIdString)
+                      << ", re-trying with a client-generated session ID..." << std::endl;
+            m_needsClientSessionId = true;
+            sessionRandIdString = sendRequest(parameters);
+        }
         if (isFailResponse(sessionRandIdString))
         {
             std::cout << "Error initialising session: " << trim(sessionRandIdString) << std::endl;
@@ -317,10 +324,10 @@ namespace ict
         }
         const std::uint32_t sessionRandIdValue = parseSessionRandId(sessionRandIdString);
 
-        const std::string xorUsername = xorToHex(username, sessionRandIdValue + 1u);
+        const std::string xorUsername = xorToHex(userName, sessionRandIdValue + 1u);
         const std::string hashXorUsername = sha1Hex(xorUsername);
 
-        const std::string xorPasswordHash = xorToHex(pswHash, sessionRandIdValue);
+        const std::string xorPasswordHash = xorToHex(passwordHash, sessionRandIdValue);
         const std::string hashXorPasswordHash = sha1Hex(xorPasswordHash);
         const std::string checkPasswordFunction = m_isHttps ? "CheckPasswordServer" : "CheckPassword";
         parameters = "Command&Type=Session&SubType=" + checkPasswordFunction
@@ -336,7 +343,7 @@ namespace ict
         if (!m_isHttps)
         {
             const std::uint32_t sessionRandIdValue2 = parseSessionRandId(sessionRandIdString2);
-            const std::string xorPasswordHash2 = xorToHex(pswHash, sessionRandIdValue2);
+            const std::string xorPasswordHash2 = xorToHex(passwordHash, sessionRandIdValue2);
             const std::string hashXorPasswordHash2 = sha1Hex(xorPasswordHash2);
             if (hashXorPasswordHash2.size() < 16)
             {
@@ -372,7 +379,7 @@ namespace ict
     }
 
     //retrieve the controllers settings
-    std::multimap<std::string, std::string> ControllerAPI::fetchControllerSettings()
+    std::multimap<std::string, std::string> ControllerAPI::fetchSettings()
     {
         std::string parameters = "Request&Type=Detail&SubType=GXT_CONTROLLERSETTINGS_TBL";
         const std::string list = sendRequest(parameters);

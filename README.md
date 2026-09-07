@@ -1,14 +1,13 @@
 # WXClient
 
-A C++ client for the ICT Protege WX door controller HTTP API, exposed by the
-controller as `PRT_CTRL_DIN_ISAPI.dll`.
+A C++ client for the ICT Protege WX access controller, using its HTTP API.
 
 ## Status
 
 Authentication, session management, and the first data query are implemented.
 `main.cpp` logs in, fetches the controller settings table, prints it, and closes
-the session. Both firmware authentication flows are supported. See
-[Roadmap](#roadmap).
+the session. Both firmware authentication flows are supported and the client
+selects between them automatically. See [Roadmap](#roadmap).
 
 ## Requirements
 
@@ -25,17 +24,17 @@ httplib rejects `https://` URLs at runtime rather than at compile time.
 
 ## Controller firmware
 
-Two authentication flows exist, and the client asks which one to use:
+Two authentication flows exist, and the client selects automatically:
 
-- **Firmware 4.00.1676 or higher** — answer `n` to the pre-4.00.1676 prompt. The
-  session is identified solely by the cookie from `Set-Cookie`.
-- **Firmware before 4.00.1676** — answer `y`. The client also generates a random
-  32-character hex session ID, appends it to `InitSession` and `CheckPassword`
-  as `&SessionID=`, appends an incrementing `&Sequence=` to each later request,
-  and prepends the session ID to the request string once logged in.
+- **Firmware 4.00.1676 or higher** — `InitSession` succeeds as-is, and the
+session is identified solely by the cookie from `Set-Cookie`.
+- **Firmware before 4.00.1676** — `InitSession` returns `FAIL`, so the client
+retries once with a random 32-character hex session ID of its own. That ID is
+appended to `InitSession` and `CheckPassword` as `&SessionID=`, an
+incrementing `&Sequence=` is appended to every later request, and the ID is
+prepended to the request string once logged in.
 
-Answering this prompt wrongly fails authentication regardless of correct
-credentials.
+The retry is announced on stdout and is not an error.
 
 ## Building
 
@@ -50,20 +49,20 @@ cmake --build build
 ./build/WXClient
 ```
 
-The client prompts for five values, in this order:
+The client prompts for four values, in this order:
 
 ```
 IP/Domain:   192.168.1.2      # scheme prefix optional; append :port if non-standard
 Username:    admin
 Password:                     # not echoed
 Https? (y/n): y
-Is the controller firmware pre 4.00.1676? (y/n): n
 ```
 
 Answer `Https?` to match how the controller actually serves its web interface.
 Getting it wrong is the most common cause of a connection failure — see
-[Troubleshooting](#troubleshooting). Invalid `y`/`n` answers re-prompt; end of
-input (Ctrl+D) aborts with an error rather than continuing with empty values.
+[Troubleshooting](#troubleshooting). The firmware version is not asked for; it
+is detected during login. Invalid `y`/`n` answers re-prompt; end of input
+(Ctrl+D) aborts with an error rather than continuing with empty values.
 
 ## How authentication works
 
@@ -87,7 +86,7 @@ From there the transports diverge:
 
 On firmware before 4.00.1676 the controller also expects a client-generated
 session ID and a monotonic sequence number, added in
-`ControllerAPI::buildRequestParameters`. The session ID is prepended to the
+`ControllerAPI::buildRequestString`. The session ID is prepended to the
 request string *after* encryption, so the controller can read it without the
 key.
 
@@ -134,14 +133,14 @@ The client prints the response verbatim, so the backoff period is visible.
 | `Could not reach controller: Read` / `Write` | Connected, then timed out. Timeouts are 5 seconds, set in `createClient()`. |
 | `Controller returned HTTP <status>` | The web server answered and rejected the request. The transport is fine; the request form or path is not. |
 | `Unexpected session ID response` | A session request returned something other than a number — check the raw response quoted in the message. |
-| `Failed to finalize decryption` | `decrypt()` could not unpad the reply — usually a session key mismatch, e.g. the wrong answer to the firmware prompt. |
+| `Failed to finalize decryption` | `decrypt()` could not unpad the reply — usually a session key mismatch. |
 | `Error in getting controller settings: FAIL…` | Logged in, but the query was rejected. Printed rather than thrown; an empty table is returned. |
 
 `InitSession` needs neither authentication nor encryption, so it can be tested
 directly to isolate transport problems from protocol ones:
 
 ```sh
-curl -vk "https://192.168.1.2/PRT_CTRL_DIN_ISAPI.dll?Command&Type=Session&SubType=InitSession"
+curl -vk "[http/https]://[IP_ADDRESS]/PRT_CTRL_DIN_ISAPI.dll?Command&Type=Session&SubType=InitSession"
 ```
 
 A bare number in the response body means the transport and request form are

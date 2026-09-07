@@ -18,22 +18,21 @@ namespace ict
         //variables
         std::array<std::uint8_t, 16> m_aesKey{};
         std::string m_sessionCookie;
+        const std::string m_clientSessionId;
         const std::string m_host;
         const std::string m_path;
-        const std::string m_sessionId;
         int m_sequenceNumber = 0;
         const bool m_isHttps;
-        const bool m_useSessionId;
+        bool m_needsClientSessionId = false;
         bool m_loggedIn = false;
         httplib::Client m_client;
     public:
         //constructors and deconstructors
-        ControllerAPI(const std::string& address, const bool https, const bool authMethod)
-            : m_host(cleanAddress(address))
+        ControllerAPI(const std::string& host, const bool isHttps)
+            : m_clientSessionId(generateSessionId())
+            , m_host(cleanAddress(host))
             , m_path("/PRT_CTRL_DIN_ISAPI.dll?")
-            , m_sessionId(generateSessionId())
-            , m_isHttps(https)
-            , m_useSessionId(authMethod)
+            , m_isHttps(isHttps)
             , m_client(createClient())
         {
         }
@@ -46,25 +45,25 @@ namespace ict
     private:
         //functions
         static std::string cleanAddress(const std::string& address);
-        static std::string xorToHex(const std::string& inputString, const std::uint32_t& num);
+        static std::string xorToHex(const std::string& inputString, const std::uint32_t& xorKey);
         static bool isFailResponse(const std::string& response);
         static std::uint32_t parseSessionRandId(const std::string& response);
-        static std::string parseCookiePair(const std::string& setCookie);
+        static std::string parseCookiePair(const std::string& setCookieHeader);
         static std::string generateSessionId();
 
         bool shouldEncrypt() const;
         httplib::Client createClient() const;
-        std::string buildRequestParameters(std::string& parameters) const;
-        std::string sendRequest(std::string& parameters);
-        std::string encrypt(const std::string& parameters) const;
-        std::string decrypt(const std::string& parameters) const;
+        std::string buildRequestString(std::string& requestString) const;
+        std::string sendRequest(std::string& requestString);
+        std::string encrypt(const std::string& requestString) const;
+        std::string decrypt(const std::string& encryptedResponse) const;
 
     public:
         //functions
         static std::string sha1Hex(const std::string& inputString); //used in main(), keep public:
-        bool login(const std::string& username, const std::string& pswHash);
+        bool login(const std::string& userName, const std::string& passwordHash);
         bool logout();
-        std::multimap<std::string, std::string> fetchControllerSettings();
+        std::multimap<std::string, std::string> fetchSettings();
     };
 } // ICT
 

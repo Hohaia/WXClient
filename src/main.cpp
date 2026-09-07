@@ -15,9 +15,8 @@ int main()
         const std::string user = readLine("\nUsername: ");
         const std::string pass = readPassword("\nPassword: ");
         const bool isHttps = readYesNo("\nHttps? (y/n): ");
-        const bool needsSessId = readYesNo("\nIs the controller firmware pre 4.00.1676? (y/n): ");
 
-        ict::ControllerAPI wx(domain, isHttps, needsSessId);
+        ict::ControllerAPI wx(domain, isHttps);
         auto pswHash = ict::ControllerAPI::sha1Hex(pass);
         std::ranges::transform(pswHash, pswHash.begin(),
                                [](const unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
@@ -28,7 +27,7 @@ int main()
             return 1;
         }
         std::cout << "\nLogged in... Getting controller settings." << std::endl;
-        const auto settings = wx.fetchControllerSettings();
+        const auto settings = wx.fetchSettings();
         printTable(settings);
 
         // the session is closed by ControllerAPI's destructor when wx goes out of scope

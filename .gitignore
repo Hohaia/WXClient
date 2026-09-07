@@ -2,5 +2,7 @@
 cmake-build-*/
 build/
 out/
+docs/vendor/
+
 *.user
 *.swp

@@ -14,7 +14,6 @@
 #include <vector>
 
 #include "ControllerAPI.h"
-#include "helpers.h"
 
 namespace ict
 {
@@ -148,7 +147,7 @@ namespace ict
     }
 
     //perform a POST request and read the response as a string
-    std::string ControllerAPI::sendRequest(std::string& requestString)
+    std::string ControllerAPI::getResponseString(std::string& requestString)
     {
         const bool loggingOut = requestString.starts_with("Command&Type=Session&SubType=CloseSession");
         requestString = buildRequestString(requestString);
@@ -309,13 +308,13 @@ namespace ict
     bool ControllerAPI::login(const std::string& userName, const std::string& passwordHash)
     {
         std::string parameters = "Command&Type=Session&SubType=InitSession";
-        std::string sessionRandIdString = sendRequest(parameters);
+        std::string sessionRandIdString = getResponseString(parameters);
         if (isFailResponse(sessionRandIdString))
         {
             std::cout << "Error initialising session: " << trim(sessionRandIdString)
                       << ", re-trying with a client-generated session ID..." << std::endl;
             m_needsClientSessionId = true;
-            sessionRandIdString = sendRequest(parameters);
+            sessionRandIdString = getResponseString(parameters);
         }
         if (isFailResponse(sessionRandIdString))
         {
@@ -334,7 +333,7 @@ namespace ict
             + "&Name=" + hashXorUsername
             + "&Password=" + hashXorPasswordHash;
 
-        const std::string sessionRandIdString2 = sendRequest(parameters);
+        const std::string sessionRandIdString2 = getResponseString(parameters);
         if (isFailResponse(sessionRandIdString2))
         {
             std::cout << "Error in authentication: " << trim(sessionRandIdString2) << std::endl;
@@ -366,7 +365,7 @@ namespace ict
         try
         {
             std::string parameters = "Command&Type=Session&SubType=CloseSession";
-            sendRequest(parameters);
+            getResponseString(parameters);
             closed = true;
         }
         catch (...)
@@ -378,16 +377,34 @@ namespace ict
         return closed;
     }
 
-    //retrieve the controllers settings
-    std::multimap<std::string, std::string> ControllerAPI::fetchSettings()
+    //send a command to the controller
+    bool ControllerAPI::command(const std::string &type, const std::string &subType)
     {
-        std::string parameters = "Request&Type=Detail&SubType=GXT_CONTROLLERSETTINGS_TBL";
-        const std::string list = sendRequest(parameters);
-        if (isFailResponse(list))
+        std::string parameters = "Command&Type=" + type + "&SubType=" + subType;
+        /*
+         *TODO this function is very incomplete...
+         *build out "parameters" to include "&RecId=<RecId>&Command=<Command>&Data1=<Data1>&Data2=<Data2>"
+         *this will also need additional args parsed to the function
+        */
+        const std::string response = trim(getResponseString(parameters));
+        if (response != "OK")
         {
-            std::cout << "Error in getting controller settings: " << trim(list) + "\n";
+            std::cerr << "Error in " << type << " " << subType << ": " << response << "\n";
+            return false;
+        }
+        return true;
+    }
+
+    //request a response table from the controller
+    ResponseTable ControllerAPI::request(const std::string& type, const std::string& subType)
+    {
+        std::string parameters = "Request&Type=" + type + "&SubType=" + subType;
+        const std::string response = getResponseString(parameters);
+        if (isFailResponse(response))
+        {
+            std::cerr << "Error in " << type << " " << subType << ": " << trim(response) << "\n";
             return {};
         }
-        return parseQueryString(trim(list));
+        return parseQueryString(trim(response));
     }
 } // ICT

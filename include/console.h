@@ -4,12 +4,15 @@
 #ifndef WXCLIENT_CONSOLE_H
 #define WXCLIENT_CONSOLE_H
 
-#include <map>
 #include <string>
+#include "helpers.h"
 
-std::string readLine(const std::string& prompt);
-bool readYesNo(const std::string& prompt);
-std::string readPassword(const std::string& prompt);
-void printTable(const std::multimap<std::string, std::string>& table);
+namespace ict
+{
+    std::string readLine(const std::string& prompt);
+    bool readYesNo(const std::string& prompt);
+    std::string readPassword(const std::string& prompt);
+    void printTable(const ResponseTable& table);
+}
 
 #endif //WXCLIENT_CONSOLE_H

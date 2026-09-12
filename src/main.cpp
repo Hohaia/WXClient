@@ -11,10 +11,10 @@ int main()
 {
     try
     {
-        const std::string domain = readLine("\nIP/Domain: ");
-        const std::string user = readLine("\nUsername: ");
-        const std::string pass = readPassword("\nPassword: ");
-        const bool isHttps = readYesNo("\nHttps? (y/n): ");
+        const std::string domain = ict::readLine("\nIP/Domain: ");
+        const std::string user = ict::readLine("\nUsername: ");
+        const std::string pass = ict::readPassword("\nPassword: ");
+        const bool isHttps = ict::readYesNo("\nHttps? (y/n): ");
 
         ict::ControllerAPI wx(domain, isHttps);
         auto pswHash = ict::ControllerAPI::sha1Hex(pass);
@@ -27,8 +27,8 @@ int main()
             return 1;
         }
         std::cout << "\nLogged in... Getting controller settings." << std::endl;
-        const auto settings = wx.fetchSettings();
-        printTable(settings);
+        const auto settings = wx.request("Detail", "GXT_CONTROLLERSETTINGS_TBL" );
+        ict::printTable(settings);
 
         // the session is closed by ControllerAPI's destructor when wx goes out of scope
     }

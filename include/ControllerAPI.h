@@ -6,10 +6,10 @@
 #define UNTITLED_CONTROLLERAPI_H
 #include <array>
 #include <cstdint>
-#include <map>
 #include <string>
-
 #include "httplib.h"
+
+#include "helpers.h"
 
 namespace ict
 {
@@ -54,7 +54,7 @@ namespace ict
         bool shouldEncrypt() const;
         httplib::Client createClient() const;
         std::string buildRequestString(std::string& requestString) const;
-        std::string sendRequest(std::string& requestString);
+        std::string getResponseString(std::string& requestString);
         std::string encrypt(const std::string& requestString) const;
         std::string decrypt(const std::string& encryptedResponse) const;
 
@@ -63,7 +63,8 @@ namespace ict
         static std::string sha1Hex(const std::string& inputString); //used in main(), keep public:
         bool login(const std::string& userName, const std::string& passwordHash);
         bool logout();
-        std::multimap<std::string, std::string> fetchSettings();
+        bool command(const std::string& type, const std::string& subType);
+        ResponseTable request(const std::string& type, const std::string& subType);
     };
 } // ICT
 

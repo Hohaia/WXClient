@@ -18,9 +18,29 @@ selects between them automatically. See [Roadmap](#roadmap).
 | OpenSSL | any recent | resolved via `find_package(OpenSSL REQUIRED)` |
 | cpp-httplib | 0.53.1 | **vendored** at `include/httplib.h`, no download needed |
 | POSIX terminal | — | `console.cpp` uses `termios`; Linux and macOS only |
+| Network path | direct | no reverse proxy or TLS-terminating gateway in between — see [Network path](#network-path) |
 
 `CPPHTTPLIB_OPENSSL_SUPPORT` is defined in `CMakeLists.txt`. Without it,
 httplib rejects `https://` URLs at runtime rather than at compile time.
+
+## Network path
+
+The client must reach the controller directly. A reverse proxy, TLS-terminating
+gateway, or anything else that rewrites the request is not supported.
+
+The `Https?` answer selects the transport *and* the session mode: over HTTP the
+controller expects `CheckPassword` and AES-encrypted parameters, over HTTPS it
+expects `CheckPasswordServer` and plain text — see
+[How authentication works](#how-authentication-works). A single answer cannot
+describe two different hops, so a gateway that accepts HTTPS and forwards HTTP
+leaves the client and the controller in different modes, and login fails. Three
+narrower assumptions are also baked in: only the first `Set-Cookie` header of a
+response is kept, redirects are not followed, and over HTTP the response body
+must arrive as unmodified hex or decryption fails.
+
+A proxy that re-encrypts to the controller — so the controller still sees HTTPS
+— and adds no cookies of its own does satisfy all four assumptions, but is
+untested.
 
 ## Controller firmware
 
@@ -132,6 +152,7 @@ The client prints the response verbatim, so the backoff period is visible.
 | `Could not reach controller: SSLConnection` | Answered `y` but the TLS handshake failed. |
 | `Could not reach controller: Read` / `Write` | Connected, then timed out. Timeouts are 5 seconds, set in `createClient()`. |
 | `Controller returned HTTP <status>` | The web server answered and rejected the request. The transport is fine; the request form or path is not. |
+| `Controller returned HTTP 301` / `302` | A redirect, which the client does not follow. Usually a middlebox forcing HTTP to HTTPS — connect to the controller directly. |
 | `Unexpected session ID response` | A session request returned something other than a number — check the raw response quoted in the message. |
 | `Failed to finalize decryption` | `decrypt()` could not unpad the reply — usually a session key mismatch. |
 | `Error in getting controller settings: FAIL…` | Logged in, but the query was rejected. Printed rather than thrown; an empty table is returned. |
@@ -167,3 +188,4 @@ src/
 - Windows support: `console.cpp` depends on `termios`.
 - Hardware verification of the pre-4.00.1676 flow; the session-ID and
   sequence-number handling is implemented but untested.
+- Reverse proxy support is not planned at this time.

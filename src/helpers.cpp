@@ -112,5 +112,32 @@ namespace ict
         }
         return params;
     }
+
+    //set the "type" for ControllerAPI::request() using enum class RequestType
+    RequestType toRequestType(const std::string& type)
+    {
+        if ("List" == type) return RequestType::List;
+        if ("Detail" == type) return RequestType::Detail;
+        if ("Events" == type) return RequestType::Events;
+        if ("Status" == type) return RequestType::Status;
+        if ("Health" == type) return RequestType::Health;
+        if ("Modules" == type) return RequestType::Modules;
+        if ("DuplicateCheck" == type) return RequestType::DuplicateCheck;
+        if ("System" == type) return RequestType::System;
+        if ("Backup" == type) return RequestType::Backup;
+        return RequestType::Unknown;
+    }
+
+    //set the "type" for ControllerAPI::command() using enum class CommandType
+    CommandType toCommandType(const std::string& type)
+    {
+        if ("Submit" == type) return CommandType::Submit;
+        if ("Delete" == type) return CommandType::Delete;
+        if ("Modules" == type) return CommandType::Modules;
+        if ("Control" == type) return CommandType::Control;
+        if ("RestartController" == type) return CommandType::RestartController;
+        if ("Restore" == type) return CommandType::Restore;
+        return CommandType::Unknown;
+    }
 }
 

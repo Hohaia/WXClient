@@ -377,28 +377,28 @@ namespace ict
         return closed;
     }
 
-    //send a command to the controller
-    bool ControllerAPI::command(const std::string &type, const std::string &subType)
-    {
-        std::string parameters = "Command&Type=" + type + "&SubType=" + subType;
-        /*
-         *TODO this function is very incomplete...
-         *build out "parameters" to include "&RecId=<RecId>&Command=<Command>&Data1=<Data1>&Data2=<Data2>"
-         *this will also need additional args parsed to the function
-        */
-        const std::string response = trim(getResponseString(parameters));
-        if (response != "OK")
-        {
-            std::cerr << "Error in " << type << " " << subType << ": " << response << "\n";
-            return false;
-        }
-        return true;
-    }
-
     //request a response table from the controller
-    ResponseTable ControllerAPI::request(const std::string& type, const std::string& subType)
+    ResponseTable ControllerAPI::sendRequest(const std::string& type, const std::string& subType)
     {
-        std::string parameters = "Request&Type=" + type + "&SubType=" + subType;
+        std::string parameters;
+        switch (toRequestType(type))
+        {
+            case RequestType::List:
+            case RequestType::Detail:
+            case RequestType::Events:
+            case RequestType::Status:
+            case RequestType::Health:
+            case RequestType::Modules:
+            case RequestType::DuplicateCheck:
+            case RequestType::System:
+                parameters = "Request&Type=" + type + "&SubType=" + subType;
+                break;
+            case RequestType::Backup:
+                parameters = "Request&Type=" + type;
+                break;
+            default:
+                throw std::runtime_error("Unknown request type: " + type);
+        }
         const std::string response = getResponseString(parameters);
         if (isFailResponse(response))
         {
@@ -406,5 +406,40 @@ namespace ict
             return {};
         }
         return parseQueryString(trim(response));
+    }
+
+    //send a command to the controller
+    bool ControllerAPI::sendCommand(const std::string& type, const std::string& subType, const std::string& recId
+                                  , const std::string& command, const std::string& data1, const std::string& data2)
+    {
+        std::string parameters;
+        switch (toCommandType(type))
+        {
+            case CommandType::Submit:
+            case CommandType::Delete:
+            case CommandType::Modules:
+                parameters = "Command&Type=" + type + "&SubType=" + subType;
+                break;
+            case CommandType::Control:
+                parameters = "Command&Type=" + type + "&SubType=" + subType + "&RecId=" + recId + "&Command=" + command;
+                if (!data1.empty()) {parameters += "&Data1=" + data1;}
+                if (!data2.empty()) {parameters += "&Data2=" + data2;}
+                break;
+            case CommandType::RestartController:
+                parameters = "Command&Type=" + type;
+                break;
+            case CommandType::Restore:
+                parameters = "Command&Type=" + type + "&SubType=" + subType;
+                break;
+            default:
+                throw std::runtime_error("Unknown command type: " + type);
+        }
+        const std::string response = trim(getResponseString(parameters));
+        if (!response.starts_with("OK"))
+        {
+            std::cerr << "Error in " << type << " " << subType << ": " << response << "\n";
+            return false;
+        }
+        return true;
     }
 } // ICT

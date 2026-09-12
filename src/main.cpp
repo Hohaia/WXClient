@@ -27,7 +27,7 @@ int main()
             return 1;
         }
         std::cout << "\nLogged in... Getting controller settings." << std::endl;
-        const auto settings = wx.request("Detail", "GXT_CONTROLLERSETTINGS_TBL" );
+        const auto settings = wx.sendRequest("Detail", "GXT_CONTROLLERSETTINGS_TBL" );
         ict::printTable(settings);
 
         // the session is closed by ControllerAPI's destructor when wx goes out of scope

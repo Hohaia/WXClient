@@ -63,8 +63,9 @@ namespace ict
         static std::string sha1Hex(const std::string& inputString); //used in main(), keep public:
         bool login(const std::string& userName, const std::string& passwordHash);
         bool logout();
-        bool command(const std::string& type, const std::string& subType);
-        ResponseTable request(const std::string& type, const std::string& subType);
+        ResponseTable sendRequest(const std::string& type, const std::string& subType = "");
+        bool sendCommand(const std::string& type, const std::string& subType = "", const std::string& recId = ""
+                       , const std::string& command = "", const std::string& data1 = "", const std::string& data2 = "");
     };
 } // ICT
 

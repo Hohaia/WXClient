@@ -13,11 +13,16 @@ namespace ict
 {
     using ResponseTable = std::vector<std::pair<std::string, std::string>>;
 
+    enum class RequestType {List, Detail, Events, Status, Health, Modules, DuplicateCheck, System, Backup, Unknown};
+    enum class CommandType {Submit, Delete, Modules, Control, RestartController, Restore, Unknown};
+
     std::string trim(const std::string& str);
     std::string toHex(const std::vector<std::uint8_t>& bytes);
     std::vector<std::uint8_t> fromHex(const std::string& hexStr);
     std::string urlDecode(const std::string& str);
     ResponseTable parseQueryString(const std::string& query);
+    RequestType toRequestType(const std::string& type);
+    CommandType toCommandType(const std::string& type);
 }
 
 #endif //WXCLIENT_HELPERS_H

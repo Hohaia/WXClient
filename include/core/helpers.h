@@ -1,6 +1,7 @@
 //
 // Created by hohaia on 02/09/2026.
 //
+
 #ifndef WXCLIENT_HELPERS_H
 #define WXCLIENT_HELPERS_H
 

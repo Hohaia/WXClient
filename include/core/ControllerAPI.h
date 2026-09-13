@@ -63,7 +63,7 @@ namespace ict
 
     public:
         //functions
-        static std::string sha1Hex(const std::string& inputString); //used in main(), keep public:
+        static std::string sha1Hex(const std::string& inputString); //used in src/workflow.cpp, keep public:
         const std::string& lastError() const;
         bool login(const std::string& userName, const std::string& passwordHash);
         bool logout();

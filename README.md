@@ -5,7 +5,7 @@ A C++ client for the ICT Protege WX access controller, using its HTTP API.
 ## Status
 
 Authentication, session management, and the first data query are implemented.
-`main.cpp` logs in, fetches the controller settings table, prints it, and closes
+`cli_main.cpp` logs in, fetches the controller settings table, prints it, and closes
 the session. Both firmware authentication flows are supported and the client
 selects between them automatically. See [Roadmap](#roadmap).
 
@@ -16,7 +16,7 @@ selects between them automatically. See [Roadmap](#roadmap).
 | CMake | 4.4+ | as pinned in `CMakeLists.txt` |
 | C++ compiler | C++20 | uses `std::ranges`, `starts_with`, `std::from_chars` |
 | OpenSSL | any recent | resolved via `find_package(OpenSSL REQUIRED)` |
-| cpp-httplib | 0.53.1 | **vendored** at `include/httplib.h`, no download needed |
+| cpp-httplib | 0.53.1 | **vendored** at `include/core/httplib.h`, no download needed |
 | POSIX terminal | — | `console.cpp` uses `termios`; Linux and macOS only |
 | Network path | direct | no reverse proxy or TLS-terminating gateway in between — see [Network path](#network-path) |
 
@@ -66,7 +66,7 @@ cmake --build build
 ## Running
 
 ```sh
-./build/WXClient
+./build/WXClient_CLI
 ```
 
 The client prompts for four values, in this order:
@@ -157,7 +157,7 @@ Failures are also recorded in logs.csv (see [Layout](#layout)) — for `sendRequ
 | `Controller returned HTTP 301` / `302` | A redirect, which the client does not follow. Usually a middlebox forcing HTTP to HTTPS — connect to the controller directly. |
 | `Unexpected session ID response` | A session request returned something other than a number — check the raw response quoted in the message. |
 | `Failed to finalize decryption` | `decrypt()` could not unpad the reply — usually a session key mismatch. |
-| `Could not get controller settings: Request Failed (N)…` | Logged in, but the query was rejected. `wx.lastError()` holds the controller's response; the same message is also appended to `logs.csv`. An empty table is returned. `sendRequest` returns `std::nullopt`|
+| `Could not get controller settings: Request Failed (N)…` | Logged in, but the query was rejected. `wx.lastError()` holds the controller's response; the same message is also appended to `logs.csv`. An empty table is returned. `sendRequest` returns `std::nullopt` |
 
 `InitSession` needs neither authentication nor encryption, so it can be tested
 directly to isolate transport problems from protocol ones:
@@ -171,19 +171,39 @@ correct. `-v` also shows the `Set-Cookie` header.
 
 ## Layout
 
+The build is split into a shared core and one frontend per target, so a
+future GUI can reuse the controller/session/logging logic without ever
+linking against `console.cpp`'s terminal-specific code. That split is now a
+physical directory boundary, not just a `CMakeLists.txt` source list:
+`core/` holds everything `wxclient_core` (a CMake `OBJECT` library)
+compiles, and `frontend/cli/` holds the console-specific files
+`WXClient_CLI` links against it. `WXClient_GUI` is a real target too now,
+but `frontend/gui/main.cpp` is currently just a stub — it builds and exits
+immediately, with no actual GUI implemented yet.
+
 ```
 include/
-  ControllerAPI.h    controller client interface
-  console.h          terminal prompts, non-echoing password entry, table output
-  helpers.h          hex conversion, trimming, query-string parsing, URL decoding
-  logger.h           audit-trail logging to logs.csv
-  httplib.h          vendored cpp-httplib 0.53.1
+  core/
+    ControllerAPI.h  controller client interface
+    helpers.h        hex conversion, trimming, query-string parsing, URL decoding
+    logger.h         audit-trail logging to logs.csv
+    workflow.h       shared login+query sequence used by every frontend
+    httplib.h        vendored cpp-httplib 0.53.1
+  frontend/
+    cli/
+      console.h      terminal prompts, non-echoing password entry, table output
 src/
-  main.cpp           interactive entry point
-  ControllerAPI.cpp  authentication, session, AES payload handling
-  console.cpp        terminal input
-  helpers.cpp        shared helpers
-  logger.cpp         writes logs.csv to a fixed per-user directory
+  core/
+    ControllerAPI.cpp  authentication, session, AES payload handling
+    helpers.cpp        shared helpers
+    logger.cpp         writes logs.csv to a fixed per-user directory
+    workflow.cpp       shared login+query sequence used by every frontend
+  frontend/
+    cli/
+      main.cpp         interactive entry point (console frontend)
+      console.cpp      terminal input
+    gui/
+      main.cpp         stub GUI entry point — not yet implemented
 ```
 
 ## Roadmap
@@ -194,7 +214,7 @@ src/
   so there's no scenario where it needs to run natively on Windows. A future GUI
   frontend would use its own toolkit's input widgets instead of `console.cpp`
   and would share only the core logic (`ControllerAPI.cpp`, `helpers.cpp`,
-  `logger.cpp`). Of those, `logger.cpp` is the one file that still needs a
+  `logger.cpp`, `workflow.cpp`). Of those, `logger.cpp` is the one file that still needs a
   Windows-specific log path and timestamp call before a GUI build could target Windows.
 - Hardware verification of the pre-4.00.1676 flow; the session-ID and
   sequence-number handling is implemented but untested.

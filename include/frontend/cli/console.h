@@ -13,6 +13,7 @@ namespace ict
     bool readYesNo(const std::string& prompt);
     std::string readPassword(const std::string& prompt);
     void printTable(const ResponseTable& table);
+    void mainMenu();
 }
 
 #endif //WXCLIENT_CONSOLE_H

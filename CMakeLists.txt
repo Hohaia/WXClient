@@ -3,28 +3,46 @@ project(WXClient)
 
 set(CMAKE_CXX_STANDARD 20)
 
-add_executable(WXClient
-        src/main.cpp
-        src/ControllerAPI.cpp
-        src/console.cpp
-        src/helpers.cpp
-        src/logger.cpp
-        include/ControllerAPI.h
-        include/console.h
-        include/helpers.h
-        include/logger.h
+find_package(OpenSSL REQUIRED)
+
+# CORE backend
+add_library(wxclient_core OBJECT
+        src/core/ControllerAPI.cpp
+        src/core/helpers.cpp
+        src/core/logger.cpp
+        src/core/workflow.cpp
+        include/core/ControllerAPI.h
+        include/core/helpers.h
+        include/core/httplib.h
+        include/core/logger.h
+        include/core/workflow.h
+)
+target_include_directories(wxclient_core PUBLIC
+        ${CMAKE_SOURCE_DIR}/include/core
+)
+target_link_libraries(wxclient_core PUBLIC
+        OpenSSL::SSL OpenSSL::Crypto
+)
+target_compile_definitions(wxclient_core PUBLIC
+        CPPHTTPLIB_OPENSSL_SUPPORT
 )
 
-target_include_directories(WXClient PRIVATE
-        ${CMAKE_SOURCE_DIR}/include
+# CLI frontend
+add_executable(WXClient_CLI
+        src/frontend/cli/main.cpp
+        src/frontend/cli/console.cpp
+        include/frontend/cli/console.h
 )
+target_include_directories(WXClient_CLI PRIVATE
+        ${CMAKE_SOURCE_DIR}/include/frontend/cli
+)
+target_link_libraries(WXClient_CLI PRIVATE wxclient_core)
 
-find_package(
-        OpenSSL REQUIRED
+# GUI frontend
+add_executable(WXClient_GUI
+        src/frontend/gui/main.cpp
 )
-target_link_libraries(
-        WXClient PRIVATE OpenSSL::SSL OpenSSL::Crypto
+target_include_directories(WXClient_GUI PRIVATE
+        ${CMAKE_SOURCE_DIR}/include/frontend/gui
 )
-target_compile_definitions(
-        WXClient PRIVATE CPPHTTPLIB_OPENSSL_SUPPORT
-)
+target_link_libraries(WXClient_GUI PRIVATE wxclient_core)

@@ -4,8 +4,10 @@
 
 #ifndef UNTITLED_CONTROLLERAPI_H
 #define UNTITLED_CONTROLLERAPI_H
+
 #include <array>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include "httplib.h"
 
@@ -18,6 +20,7 @@ namespace ict
         //variables
         std::array<std::uint8_t, 16> m_aesKey{};
         std::string m_sessionCookie;
+        std::string m_lastError;
         const std::string m_clientSessionId;
         const std::string m_host;
         const std::string m_path;
@@ -61,9 +64,10 @@ namespace ict
     public:
         //functions
         static std::string sha1Hex(const std::string& inputString); //used in main(), keep public:
+        const std::string& lastError() const;
         bool login(const std::string& userName, const std::string& passwordHash);
         bool logout();
-        ResponseTable sendRequest(const std::string& type, const std::string& subType = "");
+        std::optional<ResponseTable> sendRequest(const std::string& type, const std::string& subType);
         bool sendCommand(const std::string& type, const std::string& subType = "", const std::string& recId = ""
                        , const std::string& command = "", const std::string& data1 = "", const std::string& data2 = "");
     };

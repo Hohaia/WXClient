@@ -8,9 +8,11 @@ add_executable(WXClient
         src/ControllerAPI.cpp
         src/console.cpp
         src/helpers.cpp
+        src/logger.cpp
         include/ControllerAPI.h
         include/console.h
         include/helpers.h
+        include/logger.h
 )
 
 target_include_directories(WXClient PRIVATE

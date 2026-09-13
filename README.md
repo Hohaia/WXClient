@@ -112,7 +112,7 @@ key.
 
 The session cookie is captured from the first response and replayed on every
 subsequent request. cpp-httplib has no cookie jar, so this is handled manually
-in `ControllerAPI::sendRequest` — unlike .NET's `HttpClient`, which does
+in `ControllerAPI::getResponseString` — unlike .NET's `HttpClient`, which does
 it transparently.
 
 `CloseSession` is issued by `ControllerAPI`'s destructor, so the session is
@@ -146,6 +146,8 @@ The client prints the response verbatim, so the backoff period is visible.
 
 ## Troubleshooting
 
+Failures are also recorded in logs.csv (see [Layout](#layout)) — for `sendRequest/sendCommand`, `wx.lastError()` reflects the same message.
+
 | Message | Cause |
 | --- | --- |
 | `Could not reach controller: Connection` | Nothing listening on that host and port. Usually the wrong answer to `Https?` — `http://` targets port 80, `https://` targets 443. Also check for a non-standard port. |
@@ -155,13 +157,13 @@ The client prints the response verbatim, so the backoff period is visible.
 | `Controller returned HTTP 301` / `302` | A redirect, which the client does not follow. Usually a middlebox forcing HTTP to HTTPS — connect to the controller directly. |
 | `Unexpected session ID response` | A session request returned something other than a number — check the raw response quoted in the message. |
 | `Failed to finalize decryption` | `decrypt()` could not unpad the reply — usually a session key mismatch. |
-| `Error in getting controller settings: FAIL…` | Logged in, but the query was rejected. Printed rather than thrown; an empty table is returned. |
+| `Could not get controller settings: Request Failed (N)…` | Logged in, but the query was rejected. `wx.lastError()` holds the controller's response; the same message is also appended to `logs.csv`. An empty table is returned. `sendRequest` returns `std::nullopt`|
 
 `InitSession` needs neither authentication nor encryption, so it can be tested
 directly to isolate transport problems from protocol ones:
 
 ```sh
-curl -vk "[http/https]://[IP_ADDRESS]/PRT_CTRL_DIN_ISAPI.dll?Command&Type=Session&SubType=InitSession"
+curl -vk "<http/https>://<IP_ADDRESS>/PRT_CTRL_DIN_ISAPI.dll?Command&Type=Session&SubType=InitSession"
 ```
 
 A bare number in the response body means the transport and request form are
@@ -174,18 +176,26 @@ include/
   ControllerAPI.h    controller client interface
   console.h          terminal prompts, non-echoing password entry, table output
   helpers.h          hex conversion, trimming, query-string parsing, URL decoding
+  logger.h           audit-trail logging to logs.csv
   httplib.h          vendored cpp-httplib 0.53.1
 src/
   main.cpp           interactive entry point
   ControllerAPI.cpp  authentication, session, AES payload handling
   console.cpp        terminal input
   helpers.cpp        shared helpers
+  logger.cpp         writes logs.csv to a fixed per-user directory
 ```
 
 ## Roadmap
 
 - Further data queries beyond `GXT_CONTROLLERSETTINGS_TBL` — events, doors, users.
-- Windows support: `console.cpp` depends on `termios`.
+- The console frontend (`console.cpp`) is POSIX-only by design, not by gap: it's
+  meant to be launched via a `.sh` script, which already implies a POSIX shell,
+  so there's no scenario where it needs to run natively on Windows. A future GUI
+  frontend would use its own toolkit's input widgets instead of `console.cpp`
+  and would share only the core logic (`ControllerAPI.cpp`, `helpers.cpp`,
+  `logger.cpp`). Of those, `logger.cpp` is the one file that still needs a
+  Windows-specific log path and timestamp call before a GUI build could target Windows.
 - Hardware verification of the pre-4.00.1676 flow; the session-ID and
   sequence-number handling is implemented but untested.
 - Reverse proxy support is not planned at this time.

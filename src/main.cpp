@@ -23,12 +23,18 @@ int main()
 
         if (!wx.login(user, pswHash))
         {
-            std::cout << "\nFailed to log in." << std::endl;
+            std::cout << "\nFailed to log in: " << wx.lastError() << std::endl;
             return 1;
         }
         std::cout << "\nLogged in... Getting controller settings." << std::endl;
-        const auto settings = wx.sendRequest("Detail", "GXT_CONTROLLERSETTINGS_TBL" );
-        ict::printTable(settings);
+        if (const auto settings = wx.sendRequest("Detail", "GXT_CONTROLLERSETTINGS_TBL" ))
+        {
+            ict::printTable(*settings);
+        }
+        else
+        {
+            std::cout << "\nCould not get controller settings: " << wx.lastError() << std::endl;
+        }
 
         // the session is closed by ControllerAPI's destructor when wx goes out of scope
     }

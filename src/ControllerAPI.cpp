@@ -6,7 +6,6 @@
 #include <charconv>
 #include <cstdint>
 #include <iomanip>
-#include <iostream>
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 #include <sstream>
@@ -14,6 +13,7 @@
 #include <vector>
 
 #include "ControllerAPI.h"
+#include "logger.h"
 
 namespace ict
 {
@@ -61,7 +61,8 @@ namespace ict
     //determine if a controller response is a failure message
     bool ControllerAPI::isFailResponse(const std::string& response)
     {
-        return trim(response).starts_with("FAIL");
+        const std::string trimmedResponse = trim(response);
+        return trimmedResponse.starts_with("FAIL") || trimmedResponse.starts_with("Request Failed");
     }
 
     //parse a session random ID from a controller response
@@ -304,6 +305,12 @@ namespace ict
         return oss.str();
     }
 
+    //return the message from the most recent failed call, for a frontend to display
+    const std::string &ControllerAPI::lastError() const
+    {
+        return m_lastError;
+    }
+
     //login to the WX controller
     bool ControllerAPI::login(const std::string& userName, const std::string& passwordHash)
     {
@@ -311,14 +318,16 @@ namespace ict
         std::string sessionRandIdString = getResponseString(parameters);
         if (isFailResponse(sessionRandIdString))
         {
-            std::cout << "Error initialising session: " << trim(sessionRandIdString)
-                      << ", re-trying with a client-generated session ID..." << std::endl;
+            logMessage(LogLevel::Warning, "ControllerAPI::login"
+                        , "Failed to initialise session: " + sessionRandIdString + ", re-trying with a client generated session ID");
             m_needsClientSessionId = true;
             sessionRandIdString = getResponseString(parameters);
         }
         if (isFailResponse(sessionRandIdString))
         {
-            std::cout << "Error initialising session: " << trim(sessionRandIdString) << std::endl;
+            m_lastError = trim(sessionRandIdString);
+            logMessage(LogLevel::Error, "ControllerAPI::login"
+                        , "Failed to initialise session: " + m_lastError);
             return false;
         }
         const std::uint32_t sessionRandIdValue = parseSessionRandId(sessionRandIdString);
@@ -336,7 +345,9 @@ namespace ict
         const std::string sessionRandIdString2 = getResponseString(parameters);
         if (isFailResponse(sessionRandIdString2))
         {
-            std::cout << "Error in authentication: " << trim(sessionRandIdString2) << std::endl;
+            m_lastError = trim(sessionRandIdString2);
+            logMessage(LogLevel::Error, "ControllerAPI::login"
+                        , "Failed to authenticate session: " + m_lastError);
             return false;
         }
         if (!m_isHttps)
@@ -378,7 +389,7 @@ namespace ict
     }
 
     //request a response table from the controller
-    ResponseTable ControllerAPI::sendRequest(const std::string& type, const std::string& subType)
+    std::optional<ResponseTable> ControllerAPI::sendRequest(const std::string& type, const std::string& subType)
     {
         std::string parameters;
         switch (toRequestType(type))
@@ -399,13 +410,15 @@ namespace ict
             default:
                 throw std::runtime_error("Unknown request type: " + type);
         }
-        const std::string response = getResponseString(parameters);
+        const std::string response = trim(getResponseString(parameters));
         if (isFailResponse(response))
         {
-            std::cerr << "Error in " << type << " " << subType << ": " << trim(response) << "\n";
-            return {};
+            m_lastError = response;
+            logMessage(LogLevel::Error, "ControllerAPI::sendRequest"
+                        , type + " " + subType + ": " + m_lastError);
+            return std::nullopt;
         }
-        return parseQueryString(trim(response));
+        return parseQueryString(response);
     }
 
     //send a command to the controller
@@ -416,9 +429,11 @@ namespace ict
         switch (toCommandType(type))
         {
             case CommandType::Submit:
-            case CommandType::Delete:
             case CommandType::Modules:
                 parameters = "Command&Type=" + type + "&SubType=" + subType;
+                break;
+            case CommandType::Delete:
+                parameters = "Command&Type=" + type + "&SubType=" + subType + "&RecId=" + recId;
                 break;
             case CommandType::Control:
                 parameters = "Command&Type=" + type + "&SubType=" + subType + "&RecId=" + recId + "&Command=" + command;
@@ -437,7 +452,9 @@ namespace ict
         const std::string response = trim(getResponseString(parameters));
         if (!response.starts_with("OK"))
         {
-            std::cerr << "Error in " << type << " " << subType << ": " << response << "\n";
+            m_lastError = response;
+            logMessage(LogLevel::Error, "ControllerAPI::sendCommand"
+                        , type + " " + subType + ": " + m_lastError);
             return false;
         }
         return true;

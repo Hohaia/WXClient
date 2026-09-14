@@ -8,7 +8,7 @@
 #include <optional>
 #include <string>
 
-#include "ControllerAPI.h"
+#include "Controller_Api.h"
 #include "helpers.h"
 
 namespace ict
@@ -21,7 +21,7 @@ namespace ict
 
     // Log in, then fetch the controller settings table if login succeeded.
     // On either failure, check wx.lastError() for why.
-    LoginResult loginAndFetchSettings(ControllerAPI& wx, const std::string& userName, const std::string& password);
+    LoginResult loginAndFetchSettings(Controller_Api& wx, const std::string& userName, const std::string& password);
 }
 
 #endif //WXCLIENT_WORKFLOW_H

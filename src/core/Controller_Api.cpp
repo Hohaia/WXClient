@@ -13,14 +13,14 @@
 #include <stdexcept>
 #include <vector>
 
-#include "ControllerAPI.h"
+#include "Controller_Api.h"
 #include "logger.h"
 
 namespace ict
 {
     /* PRIVATE FUNCTIONS*/
     //clean up the host address (remove any leading "http://, https://, www.)
-    std::string ControllerAPI::cleanAddress(const std::string& address)
+    std::string Controller_Api::cleanAddress(const std::string& address)
     {
         std::string s = address;
         for (const auto& prefix : { std::string("https://"), std::string("http://") }) {
@@ -38,7 +38,7 @@ namespace ict
     }
 
     //calculate the XOR between a string and num
-    std::string ControllerAPI::xorToHex(const std::string& inputString,const std::uint32_t& num)
+    std::string Controller_Api::xorToHex(const std::string& inputString,const std::uint32_t& num)
     {
         const std::bitset<32> bits(num);
         const std::string key = bits.to_string();
@@ -60,14 +60,14 @@ namespace ict
     }
 
     //determine if a controller response is a failure message
-    bool ControllerAPI::isFailResponse(const std::string& response)
+    bool Controller_Api::isFailResponse(const std::string& response)
     {
         const std::string trimmedResponse = trim(response);
         return trimmedResponse.starts_with("FAIL") || trimmedResponse.starts_with("Request Failed");
     }
 
     //parse a session random ID from a controller response
-    std::uint32_t ControllerAPI::parseSessionRandId(const std::string& response)
+    std::uint32_t Controller_Api::parseSessionRandId(const std::string& response)
     {
         const std::string trimmedResponse = trim(response);
         std::uint32_t value = 0;
@@ -81,14 +81,14 @@ namespace ict
     }
 
     //extract the name=value pair from a Set-Cookie header value
-    std::string ControllerAPI::parseCookiePair(const std::string& setCookieHeader)
+    std::string Controller_Api::parseCookiePair(const std::string& setCookieHeader)
     {
         const auto attributes = setCookieHeader.find(';');
         return trim(attributes == std::string::npos ? setCookieHeader : setCookieHeader.substr(0, attributes));
     }
 
     //determine if outgoing requests need encryption
-    bool ControllerAPI::shouldEncrypt() const
+    bool Controller_Api::shouldEncrypt() const
     {
         if (!m_loggedIn || m_isHttps)
         {
@@ -98,7 +98,7 @@ namespace ict
     }
 
     //generate a random 32 character hex session id (for controller firmware pre 4.00.1676)
-    std::string ControllerAPI::generateSessionId()
+    std::string Controller_Api::generateSessionId()
     {
         std::vector<std::uint8_t> bytes(16);
         if (RAND_bytes(bytes.data(), static_cast<int>(bytes.size())) != 1)
@@ -109,7 +109,7 @@ namespace ict
     }
 
     //create the http client
-    httplib::Client ControllerAPI::createClient() const
+    httplib::Client Controller_Api::createClient() const
     {
         std::string httpsYN;
         if (m_isHttps)
@@ -130,7 +130,7 @@ namespace ict
     }
 
     //build the request requestString depending on WX Controllers firmware version
-    std::string ControllerAPI::buildRequestString(std::string& requestString) const
+    std::string Controller_Api::buildRequestString(std::string& requestString) const
     {
         if (!m_needsClientSessionId)
         {
@@ -149,7 +149,7 @@ namespace ict
     }
 
     //perform a POST request and read the response as a string
-    std::string ControllerAPI::getResponseString(std::string& requestString)
+    std::string Controller_Api::getResponseString(std::string& requestString)
     {
         const bool loggingOut = requestString.starts_with("Command&Type=Session&SubType=CloseSession");
         requestString = buildRequestString(requestString);
@@ -194,7 +194,7 @@ namespace ict
     }
 
     //encrypt a string
-    std::string ControllerAPI::encrypt(const std::string& requestString) const
+    std::string Controller_Api::encrypt(const std::string& requestString) const
     {
         EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
         if (!ctx)
@@ -235,7 +235,7 @@ namespace ict
     }
 
     //decrypt a string
-    std::string ControllerAPI::decrypt(const std::string& encryptedResponse) const
+    std::string Controller_Api::decrypt(const std::string& encryptedResponse) const
     {
         const std::string ivStr = encryptedResponse.substr(0, 32);
         const std::string encryptedStr = encryptedResponse.substr(32);
@@ -273,13 +273,13 @@ namespace ict
 
     /* PUBLIC FUNCTIONS*/
     //close any open session before the object goes away
-    ControllerAPI::~ControllerAPI()
+    Controller_Api::~Controller_Api()
     {
         logout();
     }
 
     //create a sha1 checksum from a string
-    std::string ControllerAPI::sha1Hex(const std::string& inputString)
+    std::string Controller_Api::sha1Hex(const std::string& inputString)
     {
         unsigned char digest[EVP_MAX_MD_SIZE];
         unsigned int digestLength = 0;
@@ -307,19 +307,19 @@ namespace ict
     }
 
     //return the message from the most recent failed call, for a frontend to display
-    const std::string &ControllerAPI::lastError() const
+    const std::string &Controller_Api::lastError() const
     {
         return m_lastError;
     }
 
     //login to the WX controller
-    bool ControllerAPI::login(const std::string& userName, const std::string& passwordHash)
+    bool Controller_Api::login(const std::string& userName, const std::string& passwordHash)
     {
         std::string parameters = "Command&Type=Session&SubType=InitSession";
         std::string sessionRandIdString = getResponseString(parameters);
         if (isFailResponse(sessionRandIdString))
         {
-            logMessage(LogLevel::Warning, "ControllerAPI::login"
+            logMessage(LogLevel::Warning, "Controller_Api::login"
                         , "Failed to initialise session: " + sessionRandIdString + ", re-trying with a client generated session ID");
             m_needsClientSessionId = true;
             sessionRandIdString = getResponseString(parameters);
@@ -327,7 +327,7 @@ namespace ict
         if (isFailResponse(sessionRandIdString))
         {
             m_lastError = trim(sessionRandIdString);
-            logMessage(LogLevel::Error, "ControllerAPI::login"
+            logMessage(LogLevel::Error, "Controller_Api::login"
                         , "Failed to initialise session: " + m_lastError);
             return false;
         }
@@ -347,7 +347,7 @@ namespace ict
         if (isFailResponse(sessionRandIdString2))
         {
             m_lastError = trim(sessionRandIdString2);
-            logMessage(LogLevel::Error, "ControllerAPI::login"
+            logMessage(LogLevel::Error, "Controller_Api::login"
                         , "Failed to authenticate session: " + m_lastError);
             return false;
         }
@@ -367,7 +367,7 @@ namespace ict
     }
 
     //log out of the WX controller
-    bool ControllerAPI::logout()
+    bool Controller_Api::logout()
     {
         if (!m_loggedIn)
         {
@@ -390,7 +390,7 @@ namespace ict
     }
 
     //request a response table from the controller
-    std::optional<ResponseTable> ControllerAPI::sendRequest(const std::string& type, const std::string& subType)
+    std::optional<ResponseTable> Controller_Api::sendRequest(const std::string& type, const std::string& subType)
     {
         std::string parameters;
         switch (toRequestType(type))
@@ -415,7 +415,7 @@ namespace ict
         if (isFailResponse(response))
         {
             m_lastError = response;
-            logMessage(LogLevel::Error, "ControllerAPI::sendRequest"
+            logMessage(LogLevel::Error, "Controller_Api::sendRequest"
                         , type + " " + subType + ": " + m_lastError);
             return std::nullopt;
         }
@@ -423,7 +423,7 @@ namespace ict
     }
 
     //send a command to the controller
-    bool ControllerAPI::sendCommand(const std::string& type, const std::string& subType, const std::string& recId
+    bool Controller_Api::sendCommand(const std::string& type, const std::string& subType, const std::string& recId
                                   , const std::string& command, const std::string& data1, const std::string& data2)
     {
         std::string parameters;
@@ -454,7 +454,7 @@ namespace ict
         if (!response.starts_with("OK"))
         {
             m_lastError = response;
-            logMessage(LogLevel::Error, "ControllerAPI::sendCommand"
+            logMessage(LogLevel::Error, "Controller_Api::sendCommand"
                         , type + " " + subType + ": " + m_lastError);
             return false;
         }

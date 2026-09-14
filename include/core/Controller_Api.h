@@ -15,7 +15,7 @@
 
 namespace ict
 {
-    class ControllerAPI
+    class Controller_Api
     {
         //variables
         std::array<std::uint8_t, 16> m_aesKey{};
@@ -31,7 +31,7 @@ namespace ict
         httplib::Client m_client;
     public:
         //constructors and deconstructors
-        ControllerAPI(const std::string& host, const bool isHttps)
+        Controller_Api(const std::string& host, const bool isHttps)
             : m_clientSessionId(generateSessionId())
             , m_host(cleanAddress(host))
             , m_path("/PRT_CTRL_DIN_ISAPI.dll?")
@@ -39,11 +39,11 @@ namespace ict
             , m_client(createClient())
         {
         }
-        ~ControllerAPI();
-        ControllerAPI(const ControllerAPI&) = delete;
-        ControllerAPI& operator=(const ControllerAPI&) = delete;
-        ControllerAPI(ControllerAPI&&) = delete;
-        ControllerAPI& operator=(ControllerAPI&&) = delete;
+        ~Controller_Api();
+        Controller_Api(const Controller_Api&) = delete;
+        Controller_Api& operator=(const Controller_Api&) = delete;
+        Controller_Api(Controller_Api&&) = delete;
+        Controller_Api& operator=(Controller_Api&&) = delete;
 
     private:
         //functions

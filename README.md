@@ -125,7 +125,7 @@ including exception unwinding.
 ## Menus
 
 **Static menus** are compile-time `constexpr std::array` tables of
-`MenuItem{key, label}` in `include/core/static_menu_tables.h`. The top-level
+`MenuItem{key, label}` in `include/core/menu_tables.h`. The top-level
 menu is one; so are the per-entity command lists, whose `key` is the `Command=`
 value `sendCommand` takes (fixed by the protocol — see
 `docs/vendor/md/control.md`). They live in `core/` because a GUI needs the same
@@ -190,10 +190,10 @@ each frontend is its own executable linking against it, so a GUI never links
 ```
 include/
   core/
-    Controller_Api.h      controller client interface
+    controller_api.h      controller client interface
     helpers.h             hex conversion, trimming, query-string parsing, URL decoding
     logger.h              audit-trail logging to logs.csv
-    static_menu_tables.h  compile-time menu tables (MenuItem, mainMenu)
+    menu_tables.h  compile-time menu tables (MenuItem, mainMenu)
     workflow.h            shared login+query sequence
     httplib.h             vendored cpp-httplib 0.53.1
   frontend/

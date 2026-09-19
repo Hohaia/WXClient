@@ -7,21 +7,26 @@
 
 #include <optional>
 #include <string>
+#include <unordered_map>
+#include <vector>
 
-#include "Controller_Api.h"
+#include "controller_api.h"
 #include "helpers.h"
+#include "menu_tables.h"
 
 namespace ict
 {
+    using SubMenuCache = std::unordered_map<std::string, std::vector<DynamicMenuItem>>;
+
     struct LoginResult
     {
-        bool loggedIn;
+        bool loggedIn{};
         std::optional<ResponseTable> settings;
     };
 
-    // Log in, then fetch the controller settings table if login succeeded.
-    // On either failure, check wx.lastError() for why.
-    LoginResult loginAndFetchSettings(Controller_Api& wx, const std::string& userName, const std::string& password);
+    LoginResult loginAndFetchSettings(ControllerApi& wx, const std::string& userName, const std::string& password);
+    std::vector<DynamicMenuItem> buildSubMenu(ControllerApi& wx, const std::string& listName);
+    const std::vector<DynamicMenuItem>& getSubMenu(ControllerApi& wx, SubMenuCache& cache, const std::string& listName);
 }
 
 #endif //WXCLIENT_WORKFLOW_H

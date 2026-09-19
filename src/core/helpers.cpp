@@ -9,7 +9,7 @@
 
 #include "helpers.h"
 
-//convert a single hex degit to its values, or -1 if its not hex
+//convert a single hex digit to its values, or -1 if its not hex
 static int hexDigit(const unsigned char ch)
 {
     if (ch >= '0' && ch <= '9') { return ch - '0'; }
@@ -114,7 +114,7 @@ namespace ict
         return params;
     }
 
-    //set the "type" for ControllerAPI::request() using enum class RequestType
+    //set the "type" for ControllerAPI::sendRequest() using enum class RequestType
     RequestType toRequestType(const std::string& type)
     {
         if ("List" == type) return RequestType::List;
@@ -129,7 +129,7 @@ namespace ict
         return RequestType::Unknown;
     }
 
-    //set the "type" for ControllerAPI::command() using enum class CommandType
+    //set the "type" for ControllerAPI::sendCommand() using enum class CommandType
     CommandType toCommandType(const std::string& type)
     {
         if ("Submit" == type) return CommandType::Submit;

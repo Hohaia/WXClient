@@ -9,7 +9,7 @@
 #include <unistd.h>
 
 #include "console.h"
-#include "static_menu_tables.h"
+#include "menu_tables.h"
 
 namespace ict
 {
@@ -78,7 +78,7 @@ namespace ict
             {
                 return false;
             }
-            std::cout << "Please answer y or n." << std::endl;
+            std::cout << "Please answer y or n.\n";
         }
     }
 
@@ -104,55 +104,16 @@ namespace ict
             discardPendingNewline();
             password = readLineOrThrow();
         }
-        std::cout << std::endl;
+        std::cout << "\n";
         return password;
     }
 
-    // print a table
+    //print a table
     void printTable(const ResponseTable& table)
     {
         for (const auto& [key, value] : table)
         {
             std::cout << key << ": " << value << "\n";
         }
-    }
-
-    //print a menu and read user input as a selection.
-    int printMenu(const std::span<const MenuItem> menu)
-    {
-        for (const auto&[key, label] : menu)
-        {
-            std::cout << key << ". " << label << "\n";
-        }
-        int choice = 0;
-        while (true)
-        {
-            bool validChoice = false;
-            std::string input = readLine("\nSelect: ");
-            try
-            {
-                choice = std::stoi(input);
-            }
-            catch (const std::exception&)
-            {
-                std::cout << "Please enter a valid choice.\n";
-                continue;
-            }
-            for (const auto& item : menu)
-            {
-                if (choice == item.key)
-                {
-                    validChoice = true;
-                    break;
-                }
-            }
-            if (!validChoice)
-            {
-                std::cout << "Please enter a valid choice.\n";
-                continue;
-            }
-            break;
-        }
-        return choice;
     }
 }

@@ -8,17 +8,17 @@ find_package(OpenSSL REQUIRED)
 # CORE backend
 add_library(wxclient_core OBJECT
 
-        src/core/Controller_Api.cpp
+        src/core/controller_api.cpp
         src/core/helpers.cpp
         src/core/logger.cpp
         src/core/workflow.cpp
 
-        include/core/Controller_Api.h
+        include/core/controller_api.h
         include/core/helpers.h
         include/core/logger.h
         include/core/workflow.h
 
-        include/core/static_menu_tables.h
+        include/core/menu_tables.h
 
         include/core/httplib.h
 )

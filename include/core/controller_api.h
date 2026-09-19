@@ -2,8 +2,8 @@
 // Created by hohaia on 23/08/2026.
 //
 
-#ifndef UNTITLED_CONTROLLERAPI_H
-#define UNTITLED_CONTROLLERAPI_H
+#ifndef WXCLIENT_CONTROLLERAPI_H
+#define WXCLIENT_CONTROLLERAPI_H
 
 #include <array>
 #include <cstdint>
@@ -15,7 +15,7 @@
 
 namespace ict
 {
-    class Controller_Api
+    class ControllerApi
     {
         //variables
         std::array<std::uint8_t, 16> m_aesKey{};
@@ -31,7 +31,7 @@ namespace ict
         httplib::Client m_client;
     public:
         //constructors and deconstructors
-        Controller_Api(const std::string& host, const bool isHttps)
+        ControllerApi(const std::string& host, const bool isHttps)
             : m_clientSessionId(generateSessionId())
             , m_host(cleanAddress(host))
             , m_path("/PRT_CTRL_DIN_ISAPI.dll?")
@@ -39,22 +39,21 @@ namespace ict
             , m_client(createClient())
         {
         }
-        ~Controller_Api();
-        Controller_Api(const Controller_Api&) = delete;
-        Controller_Api& operator=(const Controller_Api&) = delete;
-        Controller_Api(Controller_Api&&) = delete;
-        Controller_Api& operator=(Controller_Api&&) = delete;
+        ~ControllerApi();
+        ControllerApi(const ControllerApi&) = delete;
+        ControllerApi& operator=(const ControllerApi&) = delete;
+        ControllerApi(ControllerApi&&) = delete;
+        ControllerApi& operator=(ControllerApi&&) = delete;
 
     private:
         //functions
         static std::string cleanAddress(const std::string& address);
-        static std::string xorToHex(const std::string& inputString, const std::uint32_t& xorKey);
+        static std::string xorToHex(const std::string& inputString, const std::uint32_t& xorNumber);
         static bool isFailResponse(const std::string& response);
         static std::uint32_t parseSessionRandId(const std::string& response);
         static std::string parseCookiePair(const std::string& setCookieHeader);
         static std::string generateSessionId();
 
-        bool shouldEncrypt() const;
         httplib::Client createClient() const;
         std::string buildRequestString(std::string& requestString) const;
         std::string getResponseString(std::string& requestString);
@@ -63,7 +62,7 @@ namespace ict
 
     public:
         //functions
-        static std::string sha1Hex(const std::string& inputString); //used in src/workflow.cpp, keep public:
+        static std::string sha1Hex(const std::string& inputString); //used in src/core/workflow.cpp, keep public:
         const std::string& lastError() const;
         bool login(const std::string& userName, const std::string& passwordHash);
         bool logout();
@@ -71,6 +70,6 @@ namespace ict
         bool sendCommand(const std::string& type, const std::string& subType = "", const std::string& recId = ""
                        , const std::string& command = "", const std::string& data1 = "", const std::string& data2 = "");
     };
-} // ICT
+}
 
-#endif //UNTITLED_CONTROLLERAPI_H
+#endif //WXCLIENT_CONTROLLERAPI_H

@@ -2,12 +2,12 @@
 // Created by hohaia on 02/09/2026.
 //
 
+#include "helpers.h"
+
 #include <cstddef>
 #include <iomanip>
 #include <sstream>
 #include <string_view>
-
-#include "helpers.h"
 
 //convert a single hex digit to its values, or -1 if its not hex
 static int hexDigit(const unsigned char ch)

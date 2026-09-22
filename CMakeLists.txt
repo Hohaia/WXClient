@@ -20,10 +20,11 @@ add_library(wxclient_core OBJECT
 
         include/core/menu_tables.h
 
-        include/core/httplib.h
+        include/vendor/httplib/httplib.h
 )
 target_include_directories(wxclient_core PUBLIC
         ${CMAKE_SOURCE_DIR}/include/core
+        ${CMAKE_SOURCE_DIR}/include/vendor/httplib
 )
 target_link_libraries(wxclient_core PUBLIC
         OpenSSL::SSL OpenSSL::Crypto

@@ -22,9 +22,8 @@ import shutil
 import subprocess
 import sys
 import urllib.parse
-from pathlib import Path
-
 from bs4 import BeautifulSoup, NavigableString
+from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 OUT_DIR = REPO_ROOT / "docs" / "vendor"

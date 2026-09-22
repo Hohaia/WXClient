@@ -2,24 +2,25 @@
 // Created by hohaia on 23/08/2026.
 //
 
+#include "controller_api.h"
+
 #include <algorithm>
 #include <bitset>
 #include <charconv>
 #include <cstdint>
 #include <iomanip>
-#include <openssl/evp.h>
-#include <openssl/rand.h>
 #include <sstream>
 #include <stdexcept>
 #include <vector>
+#include <openssl/evp.h>
+#include <openssl/rand.h>
 
-#include "controller_api.h"
 #include "logger.h"
 
 namespace ict
 {
-    /*PRIVATE FUNCTIONS*/
-    //clean up the host address (remove any leading "http://, https://")
+    /* PRIVATE FUNCTIONS */
+    // Clean up the host address (remove any leading "http://, https://").
     std::string ControllerApi::cleanAddress(const std::string& address)
     {
         std::string s = address;
@@ -37,7 +38,7 @@ namespace ict
         return s;
     }
 
-    //calculate the XOR between a string and xorNumber
+    // Calculate the XOR between a string and xorNumber.
     std::string ControllerApi::xorToHex(const std::string& inputString,const std::uint32_t& xorNumber)
     {
         const std::bitset<32> bits(xorNumber);
@@ -59,14 +60,14 @@ namespace ict
         return oss.str();
     }
 
-    //determine if a controller response is a failure message
+    // Determine if a controller response is a failure message.
     bool ControllerApi::isFailResponse(const std::string& response)
     {
         const std::string trimmedResponse = trim(response);
         return trimmedResponse.starts_with("FAIL") || trimmedResponse.starts_with("Request Failed");
     }
 
-    //parse a session random ID from a controller response
+    // Parse a session random ID from a controller response.
     std::uint32_t ControllerApi::parseSessionRandId(const std::string& response)
     {
         const std::string trimmedResponse = trim(response);
@@ -80,14 +81,14 @@ namespace ict
         return value;
     }
 
-    //extract the name=value pair from a Set-Cookie header value
+    // Extract the name=value pair from a Set-Cookie header value.
     std::string ControllerApi::parseCookiePair(const std::string& setCookieHeader)
     {
         const auto attributes = setCookieHeader.find(';');
         return trim(attributes == std::string::npos ? setCookieHeader : setCookieHeader.substr(0, attributes));
     }
 
-    //generate a random 32 character hex session id (for controller firmware pre 4.00.1676)
+    // Generate a random 32 character hex session id (for controller firmware pre 4.00.1676).
     std::string ControllerApi::generateSessionId()
     {
         std::vector<std::uint8_t> bytes(16);
@@ -98,7 +99,7 @@ namespace ict
         return toHex(bytes);
     }
 
-    //create the http client
+    // Create the http client.
     httplib::Client ControllerApi::createClient() const
     {
         std::string protocol;
@@ -119,7 +120,7 @@ namespace ict
         return cli;
     }
 
-    //build the request requestString depending on WX Controllers firmware version
+    // Build the request requestString depending on WX Controllers firmware version.
     std::string ControllerApi::buildRequestString(std::string& requestString) const
     {
         if (!m_needsClientSessionId)
@@ -138,10 +139,11 @@ namespace ict
         return requestString;
     }
 
-    //perform a POST request and read the response as a string
+    // Perform a POST request and read the response as a string.
     std::string ControllerApi::getResponseString(std::string& requestString)
     {
-        const bool loggingOut = requestString.starts_with("Command&Type=Session&SubType=CloseSession");
+        const bool skipDecryption = requestString.starts_with("Command&Type=Session&SubType=CloseSession") ||
+                                    requestString.starts_with("Request&Type=Backup");
         requestString = buildRequestString(requestString);
         if (m_loggedIn && !m_isHttps)
         {
@@ -174,7 +176,7 @@ namespace ict
             m_sessionCookie = parseCookiePair(result->get_header_value("Set-Cookie"));
         }
         std::string response = result->body;
-        if (!loggingOut && m_loggedIn && !m_isHttps)
+        if (!skipDecryption && m_loggedIn && !m_isHttps)
         {
             response = decrypt(response);
         }
@@ -182,7 +184,7 @@ namespace ict
         return response;
     }
 
-    //encrypt a string
+    // Encrypt a string.
     std::string ControllerApi::encrypt(const std::string& requestString) const
     {
         EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
@@ -223,7 +225,7 @@ namespace ict
         return toHex(ivBytes) + toHex(encryptedData);
     }
 
-    //decrypt a string
+    // Decrypt a string.
     std::string ControllerApi::decrypt(const std::string& encryptedResponse) const
     {
         const std::string ivStr = encryptedResponse.substr(0, 32);
@@ -260,14 +262,14 @@ namespace ict
                     , static_cast<std::string::size_type>(decryptedLength)};
     }
 
-    /* PUBLIC FUNCTIONS*/
-    //close any open session before the object goes away
+    /* PUBLIC FUNCTIONS */
+    // Close any open session before the object goes away.
     ControllerApi::~ControllerApi()
     {
         logout();
     }
 
-    //create a sha1 checksum from a string
+    // Create a sha1 checksum from a string.
     std::string ControllerApi::sha1Hex(const std::string& inputString)
     {
         unsigned char digest[EVP_MAX_MD_SIZE];
@@ -295,13 +297,13 @@ namespace ict
         return oss.str();
     }
 
-    //return the message from the most recent failed call, for a frontend to display
+    // Return the message from the most recent failed call, for a frontend to display.
     const std::string &ControllerApi::lastError() const
     {
         return m_lastError;
     }
 
-    //login to the WX controller
+    // Login to the WX controller.
     bool ControllerApi::login(const std::string& userName, const std::string& passwordHash)
     {
         std::string parameters = "Command&Type=Session&SubType=InitSession";
@@ -355,7 +357,7 @@ namespace ict
         return true;
     }
 
-    //log out of the WX controller
+    // Log out of the WX controller.
     bool ControllerApi::logout()
     {
         if (!m_loggedIn)
@@ -378,7 +380,7 @@ namespace ict
         return closed;
     }
 
-    //request a response table from the controller
+    // Request a response table from the controller.
     std::optional<ResponseTable> ControllerApi::sendRequest(const std::string& type, const std::string& subType)
     {
         std::string parameters;
@@ -411,7 +413,21 @@ namespace ict
         return parseQueryString(response);
     }
 
-    //send a command to the controller
+    // Download a database backup.
+    std::optional<std::string> ControllerApi::downloadBackup()
+    {
+        std::string parameters = "Request&Type=Backup";
+        std::string response = getResponseString(parameters);
+        if (isFailResponse(response))
+        {
+            m_lastError = trim(response);
+            logMessage(LogLevel::Error, "ControllerApi::downloadBackup", m_lastError);
+            return std::nullopt;
+        }
+        return response;
+    }
+
+    // Send a command to the controller.
     bool ControllerApi::sendCommand(const std::string& type, const std::string& subType, const std::string& recId
                                   , const std::string& command, const std::string& data1, const std::string& data2)
     {

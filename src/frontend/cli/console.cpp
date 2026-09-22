@@ -2,20 +2,21 @@
 // Created by hohaia on 03/09/2026.
 //
 
+#include "console.h"
+
 #include <iostream>
 #include <optional>
 #include <stdexcept>
 #include <termios.h>
 #include <unistd.h>
 
-#include "console.h"
 #include "menu_tables.h"
 
 namespace ict
 {
     namespace
     {
-        //restore the terminal's original echo state on scope exit
+        // Restore the terminal's original echo state on scope exit.
         class EchoGuard
         {
         public:
@@ -35,7 +36,7 @@ namespace ict
             termios m_original;
         };
 
-        //discard the newline left behind by a preceding formatted read
+        // Discard the newline left behind by a preceding formatted read.
         void discardPendingNewline()
         {
             if (std::cin.peek() == '\n')
@@ -44,7 +45,7 @@ namespace ict
             }
         }
 
-        //read a whole line or fail
+        // Read a whole line or fail.
         std::string readLineOrThrow()
         {
             std::string line;
@@ -56,7 +57,7 @@ namespace ict
         }
     }
 
-    //write a prompt and read a trimmed line of input
+    // Write a prompt and read a trimmed line of input.
     std::string readLine(const std::string& prompt)
     {
         std::cout << prompt << std::flush;
@@ -64,7 +65,7 @@ namespace ict
         return trim(readLineOrThrow());
     }
 
-    //write a prompt and read a y/n answer, repeating until one is given
+    // Write a prompt and read a y/n answer, repeating until one is given.
     bool readYesNo(const std::string& prompt)
     {
         while (true)
@@ -82,7 +83,7 @@ namespace ict
         }
     }
 
-    //write a prompt and read a line without echoing it to the terminal
+    // Write a prompt and read a line without echoing it to the terminal.
     std::string readPassword(const std::string& prompt)
     {
         std::cout << prompt << std::flush;
@@ -108,7 +109,7 @@ namespace ict
         return password;
     }
 
-    //print a table
+    // Print a table.
     void printTable(const ResponseTable& table)
     {
         for (const auto& [key, value] : table)

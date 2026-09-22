@@ -12,15 +12,23 @@
 
 namespace ict
 {
+    struct StaticMenuItem
+    {
+        int key;
+        std::string_view label;
+    };
+
     std::string readLine(const std::string& prompt);
     bool readYesNo(const std::string& prompt);
     std::string readPassword(const std::string& prompt);
     void printTable(const ResponseTable& table);
 
-    //print a menu to the console
+    // Print a menu to the console.
     template <class T>
-    int printMenu(std::span<const T> menu)
+    int printMenu(std::span<const T> menu, std::string_view title)
     {
+        std::cout << "\033[2J\033[H"; // Clear console, set cursor to top-left.
+        std::cout << "<<<<<" << title << ">>>>>\n\n";
         for (const auto& item : menu)
         {
             std::cout << item.key << ". " << item.label << "\n";

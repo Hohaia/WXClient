@@ -2,6 +2,8 @@
 // Created by hohaia on 13/09/2026.
 //
 
+#include "logger.h"
+
 #include <chrono>
 #include <cstdlib>
 #include <ctime>
@@ -9,8 +11,6 @@
 #include <fstream>
 #include <iomanip>
 #include <sstream>
-
-#include "logger.h"
 
 namespace ict
 {

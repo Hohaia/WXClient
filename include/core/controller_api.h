@@ -7,9 +7,9 @@
 
 #include <array>
 #include <cstdint>
+#include <httplib.h>
 #include <optional>
 #include <string>
-#include "httplib.h"
 
 #include "helpers.h"
 
@@ -29,7 +29,10 @@ namespace ict
         bool m_needsClientSessionId = false;
         bool m_loggedIn = false;
         httplib::Client m_client;
+
     public:
+        std::optional<ResponseTable> m_settings;
+
         //constructors and deconstructors
         ControllerApi(const std::string& host, const bool isHttps)
             : m_clientSessionId(generateSessionId())
@@ -67,6 +70,7 @@ namespace ict
         bool login(const std::string& userName, const std::string& passwordHash);
         bool logout();
         std::optional<ResponseTable> sendRequest(const std::string& type, const std::string& subType);
+        std::optional<std::string> downloadBackup();
         bool sendCommand(const std::string& type, const std::string& subType = "", const std::string& recId = ""
                        , const std::string& command = "", const std::string& data1 = "", const std::string& data2 = "");
     };

@@ -16,7 +16,7 @@
 
 namespace ict
 {
-    using SubMenuCache = std::unordered_map<std::string, std::vector<DynamicMenuItem>>;
+    using SubMenuCache = std::unordered_map<std::string, std::vector<MenuItem>>;
 
     struct LoginResult
     {
@@ -25,8 +25,8 @@ namespace ict
     };
 
     LoginResult loginAndFetchSettings(ControllerApi& wx, const std::string& userName, const std::string& password);
-    std::vector<DynamicMenuItem> buildSubMenu(ControllerApi& wx, const std::string& listName);
-    const std::vector<DynamicMenuItem>& getSubMenu(ControllerApi& wx, SubMenuCache& cache, const std::string& listName);
+    std::vector<MenuItem> buildSubMenu(ControllerApi& wx, const std::string& listName);
+    const std::vector<MenuItem>& getSubMenu(ControllerApi& wx, SubMenuCache& cache, const std::string& listName);
 }
 
 #endif //WXCLIENT_WORKFLOW_H

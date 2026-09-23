@@ -60,7 +60,7 @@ namespace ict
     }
 
     //decode the %XX escapes and '+' separators in a url encoded string
-    std::string urlDecode(const std::string &str)
+    std::string urlDecode(const std::string& str)
     {
         std::string decodedStr;
         decodedStr.reserve(str.size());

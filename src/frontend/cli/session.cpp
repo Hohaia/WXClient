@@ -5,11 +5,9 @@
 #include "session.h"
 
 #include <algorithm>
-#include <filesystem>
+#include <array>
 #include <iostream>
-#include <optional>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 #include "console.h"
@@ -42,91 +40,106 @@ namespace ict
         };
 
         // Run a control menu using the selected RecId.
-       void cliCommandMenu(ControllerApi& wx, SubMenuCache& cachedSubMenus, const std::string& recId)
+        void cliCommandMenu(ControllerApi& wx, SubMenuCache& cachedSubMenus, const std::string& recId)
         {
             //TODO
         }
 
         // Run a sub menu.
         void cliSubMenu(ControllerApi& wx, SubMenuCache& cachedSubMenus, const MenuTable& subMenu)
-       {
-           const auto& items = getSubMenu(wx, cachedSubMenus, std::string(subMenu.listName));
+        {
+            const auto* fetched = getSubMenu(wx, cachedSubMenus, std::string(subMenu.listName));
+            if (!fetched)
+            {
+                printError("Could not load " + std::string(subMenu.label) + ": " + wx.lastError());
+                waitForEnter();
+                return;
+            }
+            const auto& items = *fetched;
 
-           std::vector<StaticMenuItem> display;
-           for (size_t i = 0; i < items.size(); ++i)
-               display.emplace_back(static_cast<int>(i) + 1, items[i].label);
-           display.emplace_back(0, "Back");
+            std::vector<StaticMenuItem> display;
+            for (size_t i = 0; i < items.size(); ++i)
+                display.emplace_back(static_cast<int>(i) + 1, items[i].label);
+            display.emplace_back(0, "Back");
 
-           while (true)
-           {
-               const int choice = printMenu<StaticMenuItem>(display, subMenu.label);
-               if (choice == 0)
-                   break;
-               cliCommandMenu(wx, cachedSubMenus, items[choice - 1].recId);
-           }
-       }
+            while (true)
+            {
+                const int choice = printMenu<StaticMenuItem>(display, subMenu.label);
+                if (choice == 0)
+                    break;
+                cliCommandMenu(wx, cachedSubMenus, items[choice - 1].recId);
+            }
+        }
+
+        // Open a sub menu.
+        void cliOpenSubMenu(ControllerApi& wx, SubMenuCache& cachedSubMenus, const MainMenuItem& selected)
+        {
+            const auto it = std::ranges::find_if(MenuTables,
+                            [&](const MenuTable& s) { return s.listName == selected.listName; });
+            cliSubMenu(wx, cachedSubMenus, *it);
+        }
+
+        // Download a backup to the Downloads folder.
+        void cliBackup(ControllerApi& wx)
+        {
+            const auto directory = defaultBackupDirectory();
+            if (!directory)
+            {
+                printError("Backup failed: could not find the Downloads folder.");
+                waitForEnter();
+                return;
+            }
+            std::cout << "\nDownloading backup...\n";
+            const BackupResult result = saveBackup(wx, *directory);
+            if (!result.backupPath)
+            {
+                printError("Backup failed: " + result.error);
+                waitForEnter();
+                return;
+            }
+            std::cout << "\nBackup saved to " << result.backupPath->string() << " (" << result.bytes << " bytes)\n";
+            waitForEnter();
+        }
+
+        // Restart the controller.
+        void cliRestart(ControllerApi& wx)
+        {
+            if (!readYesNo("\nAre you sure you want to restart the Controller? (y/n): "))
+                return;
+            if (wx.sendCommand("RestartController"))
+                return;
+            printError("Failed to restart the Controller: " + wx.lastError());
+            waitForEnter();
+        }
 
         // Run the main menu.
         int cliMainMenu(ControllerApi& wx)
-       {
-           SubMenuCache cachedSubMenus;
-           std::vector<StaticMenuItem> display;
-           int key = 1;
-           for (const auto& item : mainMenu)
-               display.emplace_back(item.action == MainMenuAction::Logout ? 0 : key++, item.label);
+        {
+            SubMenuCache cachedSubMenus;
+            std::vector<StaticMenuItem> display;
+            int key = 1;
+            for (const auto& item : mainMenu)
+                // Logout always gets key 0, matching the "0 = exit/back" convention
+                // printMenu/cliSubMenu use elsewhere.
+                display.emplace_back(item.action == MainMenuAction::Logout ? 0 : key++, item.label);
 
-           while (true)
-           {
-               const int choice = printMenu<StaticMenuItem>(display, "Main Menu");
-               const auto displayIt = std::ranges::find_if(display,
+            while (true)
+            {
+                const int choice = printMenu<StaticMenuItem>(display, "Main Menu");
+                const auto displayIt = std::ranges::find_if(display,
                                       [choice](const StaticMenuItem& item) { return item.key == choice; });
-               const auto& selected = mainMenu[std::distance(display.begin(), displayIt)];
 
-               switch (selected.action)
-               {
-                   case MainMenuAction::OpenSubMenu:
-                   {
-                       const auto it = std::ranges::find_if(MenuTables,
-                           [&](const MenuTable& s) { return s.listName == selected.listName; });
-                       cliSubMenu(wx, cachedSubMenus, *it);
-                       break;
-                   }
-                   case MainMenuAction::Backup:
-                   {
-                       std::cout << "\nDownloading backup...\n";
-                       const auto backup = wx.downloadBackup();
-                       if (!backup)
-                       {
-                           std::cout << "\nBackup failed: " << wx.lastError() << "\n";
-                           break;
-                       }
-                       const auto serialIt = std::ranges::find_if(*wx.m_settings,
-                                             [](const auto& kv) { return kv.first == "SERIALNUMBER"; });
-                       const std::string serial = serialIt != wx.m_settings->end() ? serialIt->second : "UNKNOWN";
-
-                       std::ostringstream dateStream;
-                       const std::time_t now = std::time(nullptr);
-                       dateStream << std::put_time(std::localtime(&now), "%d_%b_%Y");
-
-                       const std::filesystem::path downloadsDir = std::filesystem::path(std::getenv("HOME")) / "Downloads";
-                       std::filesystem::create_directories(downloadsDir);
-                       const std::filesystem::path filePath = downloadsDir / ("Db_" + serial + "_" + dateStream.str() + ".bak");
-
-                       std::ofstream out(filePath, std::ios::binary);
-                       out.write(backup->data(), static_cast<std::streamsize>(backup->size()));
-
-                       std::cout << "\nBackup saved to " << filePath << " (" << backup->size() << " bytes)\n";
-                       break;
-                   }
-                   case MainMenuAction::Restart:
-                       if (readYesNo("\nAre you sure you want to restart the Controller? (y/n): "))
-                           wx.sendCommand("Command", "RestartController");
-                       break;
-                   case MainMenuAction::Logout:
-                       return 0;
-               }
-           }
-       }
+                // 'display' and 'mainMenu' are built in the same loop, same order/length,
+                // so their positions line up — this breaks silently if that ever changes.
+                switch (const auto& selected = mainMenu[std::distance(display.begin(), displayIt)]; selected.action)
+                {
+                    case MainMenuAction::OpenSubMenu: cliOpenSubMenu(wx, cachedSubMenus, selected); break;
+                    case MainMenuAction::Backup:      cliBackup(wx);  break;
+                    case MainMenuAction::Restart:     cliRestart(wx); break;
+                    case MainMenuAction::Logout:      return 0;
+                }
+            }
+        }
     }
 
     // Run the cli front end interface.
@@ -138,24 +151,20 @@ namespace ict
         const bool isHttps = readYesNo("\nIs the controller using Https? (y/n): ");
 
         ControllerApi wx(domain, isHttps); // The session is closed by ControllerApi's destructor when wx goes out of scope.
-        LoginResult wxLogin = loginAndFetchSettings(wx, userName, password);
-        if (!wxLogin.loggedIn)
+        if (!loginAndFetchSettings(wx, userName, password))
         {
-            std::cout << "\nFailed to log in: " << wx.lastError() << std::endl;
+            printError("Failed to log in: " + wx.lastError());
             return 1;
         }
-        std::cout << "\nLogged in... Getting controller settings." << std::endl;
-        if (wxLogin.settings)
+        std::cout << "\nLogged in...\n";
+        if (!wx.m_settings)
         {
-            // NOTE: this is the main body of the programme.
-            printTable(*wxLogin.settings);
-            readLine("\nPress [Enter] to continue...\n");
-            return cliMainMenu(wx);
+            printError("Could not get controller settings: " + wx.lastError());
+            return 1;
         }
-        else
-        {
-            std::cout << "\nCould not get controller settings: " << wx.lastError() << std::endl;
-        }
-        return 0;
+        // NOTE: this is the main body of the programme.
+        printTable(*wx.m_settings);
+        waitForEnter();
+        return cliMainMenu(wx);
     }
 }

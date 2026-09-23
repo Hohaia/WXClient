@@ -56,32 +56,35 @@ namespace ict
         //set the directory for logs.csv, regardless of the process's cwd
         std::filesystem::path logDirectory()
         {
-#ifdef _WIN32
+            #ifdef _WIN32
             #error "Windows support: resolve %LOCALAPPDATA%\\wxclient here once console.cpp no longer depends on termios."
-#else
+            #else
             const char* xdgState = std::getenv("XDG_STATE_HOME");
             const char* home = std::getenv("HOME");
             const std::filesystem::path base = (xdgState && *xdgState)
                 ? std::filesystem::path(xdgState)
                 : std::filesystem::path(home ? home : ".") / ".local" / "state";
             return base / "wxclient";
-#endif
-        }
-
-        std::filesystem::path logFilePath()
-        {
-            const std::filesystem::path logDir = logDirectory();
-            std::filesystem::create_directories(logDir);
-            return logDir / "logs.csv";
+            #endif
         }
     }
+
+    std::filesystem::path logFilePath()
+    {
+        const std::filesystem::path logDir = logDirectory();
+        std::error_code ec;
+        std::filesystem::create_directories(logDir, ec);   // A failure shows up as the ofstream failing to open.
+        return logDir / "logs.csv";
+    }
+
 
     //append one row to logs.csv: timestamp,level,source,message
     void logMessage(LogLevel level, const std::string& source, const std::string& message)
     {
         const std::filesystem::path path = logFilePath();
-        const bool needsHeader = !std::filesystem::exists(path)
-                               || std::filesystem::file_size(path) == 0;
+        std::error_code ec;
+        const auto size = std::filesystem::file_size(path, ec);
+        const bool needsHeader = ec || size == 0;   // ec is set when the file doesn't exist yet.
         std::ofstream file(path, std::ios::app);
         if (!file)
         {

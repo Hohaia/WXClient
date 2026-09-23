@@ -5,13 +5,14 @@
 #ifndef WXCLIENT_LOGGER_H
 #define WXCLIENT_LOGGER_H
 
+#include <filesystem>
 #include <string>
 
 namespace ict
 {
     enum class LogLevel {Info, Warning, Error};
 
-    //append one row to logs.csv: timestamp,level,source,message.
+    std::filesystem::path logFilePath();
     void logMessage(LogLevel level, const std::string& source, const std::string& message);
 }
 

@@ -1,4 +1,5 @@
 .idea/
+.PVS-Studio/
 cmake-build-*/
 build/
 out/

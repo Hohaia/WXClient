@@ -93,8 +93,10 @@ fetched yet.
 
 ## Troubleshooting
 
-Failures are appended to `logs.csv`; for `sendRequest`/`sendCommand`/
-`downloadBackup`, `wx.lastError()` holds the same message.
+Failures are appended to `logs.csv` in `$XDG_STATE_HOME/wxclient/`
+(default `~/.local/state/wxclient/logs.csv`); the CLI prints this path with
+every error. For `sendRequest`/`sendCommand`/`downloadBackup`,
+`wx.lastError()` holds the same message.
 
 | Response                               | Meaning                                                       |
 |----------------------------------------|---------------------------------------------------------------|

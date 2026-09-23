@@ -298,7 +298,7 @@ namespace ict
     }
 
     // Return the message from the most recent failed call, for a frontend to display.
-    const std::string &ControllerApi::lastError() const
+    const std::string& ControllerApi::lastError() const
     {
         return m_lastError;
     }
@@ -370,6 +370,10 @@ namespace ict
             std::string parameters = "Command&Type=Session&SubType=CloseSession";
             getResponseString(parameters);
             closed = true;
+        }
+        catch (const std::exception& e)
+        {
+            logMessage(LogLevel::Warning, "ControllerApi::logout", e.what());
         }
         catch (...)
         {

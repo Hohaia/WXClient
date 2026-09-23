@@ -1,6 +1,8 @@
 #include <exception>
 #include <iostream>
 
+#include "console.h"
+#include "logger.h"
 #include "session.h"
 
 int main()
@@ -11,7 +13,8 @@ int main()
     }
     catch (const std::exception& e)
     {
-        std::cerr << "\nError: " << e.what() << std::endl;
+        ict::logMessage(ict::LogLevel::Error, "main", e.what());
+        ict::printError(e.what());
         return 1;
     }
 }

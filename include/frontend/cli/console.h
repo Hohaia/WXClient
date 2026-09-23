@@ -22,6 +22,8 @@ namespace ict
     bool readYesNo(const std::string& prompt);
     std::string readPassword(const std::string& prompt);
     void printTable(const ResponseTable& table);
+    void printError(const std::string& message);
+    void waitForEnter();
 
     // Print a menu to the console.
     template <class T>

@@ -32,6 +32,7 @@ namespace ict
 
     public:
         std::optional<ResponseTable> m_settings;
+        std::string m_serialNumber;
 
         //constructors and deconstructors
         ControllerApi(const std::string& host, const bool isHttps)

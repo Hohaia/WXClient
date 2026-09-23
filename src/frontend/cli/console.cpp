@@ -10,7 +10,7 @@
 #include <termios.h>
 #include <unistd.h>
 
-#include "menu_tables.h"
+#include "logger.h"
 
 namespace ict
 {
@@ -36,15 +36,6 @@ namespace ict
             termios m_original;
         };
 
-        // Discard the newline left behind by a preceding formatted read.
-        void discardPendingNewline()
-        {
-            if (std::cin.peek() == '\n')
-            {
-                std::cin.ignore();
-            }
-        }
-
         // Read a whole line or fail.
         std::string readLineOrThrow()
         {
@@ -61,7 +52,6 @@ namespace ict
     std::string readLine(const std::string& prompt)
     {
         std::cout << prompt << std::flush;
-        discardPendingNewline();
         return trim(readLineOrThrow());
     }
 
@@ -102,10 +92,12 @@ namespace ict
                 quiet.c_lflag &= ~static_cast<tcflag_t>(ECHO);
                 tcsetattr(STDIN_FILENO, TCSAFLUSH, &quiet);
             }
-            discardPendingNewline();
             password = readLineOrThrow();
         }
-        std::cout << "\n";
+        if (isTerminal)
+        {
+            std::cout << "\n";
+        }
         return password;
     }
 
@@ -116,5 +108,18 @@ namespace ict
         {
             std::cout << key << ": " << value << "\n";
         }
+    }
+
+    // Print an error message and the filepath to 'logs.csv'.
+    void printError(const std::string& message)
+    {
+        std::cout << "\n" << message << "\n";
+        std::cout << "\nLog file: " << logFilePath().string() << "\n";
+    }
+
+    // Wait for 'Enter' input before continuing.
+    void waitForEnter()
+    {
+        readLine("\nPress [Enter] to continue...");
     }
 }

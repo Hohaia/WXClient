@@ -11,19 +11,21 @@
 #include <optional>
 #include <string>
 
-#include "helpers.h"
+#include "protocol.h"
 
 namespace ict
 {
     class ControllerApi
     {
+        enum class Reply {Decrypt, Raw}; // Raw: logout and backup replies are never encrypted.
+
         //variables
+        static constexpr const char* m_path = "/PRT_CTRL_DIN_ISAPI.dll?";
         std::array<std::uint8_t, 16> m_aesKey{};
         std::string m_sessionCookie;
         std::string m_lastError;
         const std::string m_clientSessionId;
         const std::string m_host;
-        const std::string m_path;
         int m_sequenceNumber = 0;
         const bool m_isHttps;
         bool m_needsClientSessionId = false;
@@ -31,14 +33,13 @@ namespace ict
         httplib::Client m_client;
 
     public:
-        std::optional<ResponseTable> m_settings;
+        std::optional<KeyValueList> m_settings;
         std::string m_serialNumber;
 
         //constructors and deconstructors
         ControllerApi(const std::string& host, const bool isHttps)
             : m_clientSessionId(generateSessionId())
             , m_host(cleanAddress(host))
-            , m_path("/PRT_CTRL_DIN_ISAPI.dll?")
             , m_isHttps(isHttps)
             , m_client(createClient())
         {
@@ -50,30 +51,41 @@ namespace ict
         ControllerApi& operator=(ControllerApi&&) = delete;
 
     private:
-        //functions
-        static std::string cleanAddress(const std::string& address);
-        static std::string xorToHex(const std::string& inputString, const std::uint32_t& xorNumber);
-        static bool isFailResponse(const std::string& response);
-        static std::uint32_t parseSessionRandId(const std::string& response);
-        static std::string parseCookiePair(const std::string& setCookieHeader);
-        static std::string generateSessionId();
+        // Functions.
+        [[nodiscard]] static std::string cleanAddress(const std::string& address);
+        [[nodiscard]] static std::string xorToHex(const std::string& inputString,
+                                                  std::uint32_t xorNumber);
+        [[nodiscard]] static bool isFailResponse(const std::string& response);
+        [[nodiscard]] static std::uint32_t parseSessionRandId(const std::string& response);
+        [[nodiscard]] static std::string parseCookiePair(const std::string& setCookieHeader);
+        [[nodiscard]] static std::string generateSessionId();
+        [[nodiscard]] static std::string buildParameters(const std::string& kind,
+                                                         const std::string& type,
+                                                         const std::string& subType,
+                                                         const KeyValueList& params);
 
-        httplib::Client createClient() const;
-        std::string buildRequestString(std::string& requestString) const;
-        std::string getResponseString(std::string& requestString);
-        std::string encrypt(const std::string& requestString) const;
-        std::string decrypt(const std::string& encryptedResponse) const;
+        [[nodiscard]] httplib::Client createClient() const;
+        [[nodiscard]] std::string buildRequestString(const std::string& requestString) const;
+        std::string getResponseString(std::string requestString, Reply reply = Reply::Decrypt);
+        [[nodiscard]] std::string encrypt(const std::string& requestString) const;
+        [[nodiscard]] std::string decrypt(const std::string& encryptedResponse) const;
+        void clearSession();
 
     public:
         //functions
-        static std::string sha1Hex(const std::string& inputString); //used in src/core/workflow.cpp, keep public:
-        const std::string& lastError() const;
-        bool login(const std::string& userName, const std::string& passwordHash);
+        [[nodiscard]] const std::string& lastError() const;
+        bool login(const std::string& userName,
+                   const std::string& passwordHash);
         bool logout();
-        std::optional<ResponseTable> sendRequest(const std::string& type, const std::string& subType);
-        std::optional<std::string> downloadBackup();
-        bool sendCommand(const std::string& type, const std::string& subType = "", const std::string& recId = ""
-                       , const std::string& command = "", const std::string& data1 = "", const std::string& data2 = "");
+        bool restartAllModules();
+        bool restartController();
+        [[nodiscard]] std::optional<std::string> downloadBackup();
+        [[nodiscard]] std::optional<KeyValueList> sendRequest(RequestType type,
+                                                              const std::string& subType,
+                                                              const KeyValueList& params = {});
+        bool sendCommand(CommandType type,
+                         const std::string& subType = "",
+                         const KeyValueList& params = {});
     };
 }
 

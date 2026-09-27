@@ -3,27 +3,37 @@ project(WXClient)
 
 set(CMAKE_CXX_STANDARD 20)
 
+add_compile_options(-Wall -Wextra -Werror=parentheses)
+
 find_package(OpenSSL REQUIRED)
 
-# CORE backend
+# shared CORE backend
 add_library(wxclient_core OBJECT
 
         src/core/controller_api.cpp
         src/core/helpers.cpp
         src/core/logger.cpp
+        src/core/protocol.cpp
+        src/core/status.cpp
         src/core/workflow.cpp
 
         include/core/controller_api.h
         include/core/helpers.h
         include/core/logger.h
+        include/core/protocol.h
+        include/core/status.h
         include/core/workflow.h
 
-        include/core/menu_tables.h
+        include/core/lookup/table_names.h
+        include/core/lookup/status_code_tables.h
 
         include/vendor/httplib/httplib.h
 )
 target_include_directories(wxclient_core PUBLIC
         ${CMAKE_SOURCE_DIR}/include/core
+        ${CMAKE_SOURCE_DIR}/include/core/lookup
+)
+target_include_directories(wxclient_core SYSTEM PUBLIC
         ${CMAKE_SOURCE_DIR}/include/vendor/httplib
 )
 target_link_libraries(wxclient_core PUBLIC
@@ -46,7 +56,9 @@ add_executable(WXClient_CLI
 target_include_directories(WXClient_CLI PRIVATE
         ${CMAKE_SOURCE_DIR}/include/frontend/cli
 )
-target_link_libraries(WXClient_CLI PRIVATE wxclient_core)
+target_link_libraries(WXClient_CLI PRIVATE
+        wxclient_core
+)
 
 # GUI frontend
 add_executable(WXClient_GUI
@@ -59,4 +71,6 @@ add_executable(WXClient_GUI
 target_include_directories(WXClient_GUI PRIVATE
         ${CMAKE_SOURCE_DIR}/include/frontend/gui
 )
-target_link_libraries(WXClient_GUI PRIVATE wxclient_core)
+target_link_libraries(WXClient_GUI PRIVATE
+        wxclient_core
+)

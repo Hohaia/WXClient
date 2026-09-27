@@ -11,6 +11,7 @@
 #include <unistd.h>
 
 #include "logger.h"
+#include "helpers.h"
 
 namespace ict
 {
@@ -102,7 +103,7 @@ namespace ict
     }
 
     // Print a table.
-    void printTable(const ResponseTable& table)
+    void printTable(const KeyValueList& table)
     {
         for (const auto& [key, value] : table)
         {

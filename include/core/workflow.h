@@ -12,12 +12,12 @@
 #include <vector>
 
 #include "controller_api.h"
-#include "helpers.h"
-#include "menu_tables.h"
+#include "table_names.h"
 
 namespace ict
 {
-    using SubMenuCache = std::unordered_map<std::string, std::vector<MenuItem>>;
+    using RecordListCache = std::unordered_map<std::string, std::vector<RecordEntry>>;
+    using StatusMap = std::unordered_map<std::string, std::string>; // recID -> raw status, e.g. "0" -> "23,3,0"
 
     struct BackupResult
     {
@@ -26,11 +26,11 @@ namespace ict
         std::string error;                               // Set on failure.
     };
 
-    bool loginAndFetchSettings(ControllerApi& wx, const std::string& userName, const std::string& password);
-    std::optional<std::vector<MenuItem>> buildSubMenu(ControllerApi& wx, const std::string& listName);
-    const std::vector<MenuItem>* getSubMenu(ControllerApi& wx, SubMenuCache& cache, const std::string& listName);
     std::optional<std::filesystem::path> defaultBackupDirectory();
     BackupResult saveBackup(ControllerApi& wx, const std::filesystem::path& directory);
+    bool loginAndFetchSettings(ControllerApi& wx, const std::string& userName, const std::string& password);
+    const std::vector<RecordEntry>* getRecordList(ControllerApi& wx, RecordListCache& cache, const std::string& tableName);
+    std::optional<StatusMap> fetchStatuses(ControllerApi& wx, const std::string& tableName);
 }
 
 #endif //WXCLIENT_WORKFLOW_H

@@ -5,16 +5,14 @@
 #include "controller_api.h"
 
 #include <algorithm>
-#include <bitset>
 #include <charconv>
 #include <cstdint>
-#include <iomanip>
-#include <sstream>
 #include <stdexcept>
 #include <vector>
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 
+#include "helpers.h"
 #include "logger.h"
 
 namespace ict
@@ -38,26 +36,17 @@ namespace ict
         return s;
     }
 
-    // Calculate the XOR between a string and xorNumber.
-    std::string ControllerApi::xorToHex(const std::string& inputString,const std::uint32_t& xorNumber)
+    // XOR each character with the next byte of xorNumber (lowest byte first, repeating), as hex.
+    std::string ControllerApi::xorToHex(const std::string& inputString, const std::uint32_t xorNumber)
     {
-        const std::bitset<32> bits(xorNumber);
-        const std::string key = bits.to_string();
-        std::size_t offset = key.size();
-        std::ostringstream oss;
-        for (const unsigned char ch : inputString)
+        std::vector<std::uint8_t> bytes;
+        bytes.reserve(inputString.size());
+        for (std::size_t i = 0; i < inputString.size(); ++i)
         {
-            offset = (offset == 0) ? (key.size() - 8u) : (offset - 8u);
-            const std::string byteKey = key.substr(offset, 8u);
-            const auto byteVal = static_cast<unsigned int>(std::stoi(byteKey, nullptr, 2));
-
-            oss << std::uppercase
-                << std::hex
-                << std::setw(2)
-                << std::setfill('0')
-                << (static_cast<unsigned int>(ch) ^ byteVal);
+            const auto keyByte = static_cast<std::uint8_t>(xorNumber >> (8 * (i % 4)));
+            bytes.push_back(static_cast<std::uint8_t>(static_cast<std::uint8_t>(inputString[i]) ^ keyByte));
         }
-        return oss.str();
+        return toHex(bytes);
     }
 
     // Determine if a controller response is a failure message.
@@ -99,19 +88,23 @@ namespace ict
         return toHex(bytes);
     }
 
+    // Build "<kind>&Type=<type>&SubType=<subType>&key=value..." with the values encoded.
+    std::string ControllerApi::buildParameters(const std::string& kind, const std::string& type
+                                             , const std::string& subType, const KeyValueList& params)
+    {
+        std::string parameters = kind + "&Type=" + type;
+        if (!subType.empty())
+            parameters += "&SubType=" + subType;
+        for (const auto& [key, value] : params)
+            parameters += "&" + key + "=" + encodeStringValue(value);
+        return parameters;
+    }
+
     // Create the http client.
     httplib::Client ControllerApi::createClient() const
     {
         std::string protocol;
-        if (m_isHttps)
-        {
-            protocol = "https";
-        }
-        else
-        {
-            protocol = "http";
-        }
-        const std::string cliDomain = protocol + "://" + m_host + "/";
+        const std::string cliDomain = std::string(m_isHttps ? "https" : "http") + "://" + m_host + "/";
         httplib::Client cli(cliDomain);
         cli.enable_server_certificate_verification(false);
         cli.set_connection_timeout(5);
@@ -121,7 +114,7 @@ namespace ict
     }
 
     // Build the request requestString depending on WX Controllers firmware version.
-    std::string ControllerApi::buildRequestString(std::string& requestString) const
+    std::string ControllerApi::buildRequestString(const std::string& requestString) const
     {
         if (!m_needsClientSessionId)
         {
@@ -130,20 +123,14 @@ namespace ict
         if (requestString.starts_with("Command&Type=Session&SubType=InitSession")
             || requestString.starts_with("Command&Type=Session&SubType=CheckPassword"))
         {
-            requestString = requestString + "&SessionID=" + m_clientSessionId;
-            return requestString;
+            return requestString + "&SessionID=" + m_clientSessionId;
         }
-        const std::string seqNum = std::to_string(m_sequenceNumber);
-        requestString = requestString + "&Sequence=" + seqNum;
-
-        return requestString;
+        return requestString + "&Sequence=" + std::to_string(m_sequenceNumber);
     }
 
     // Perform a POST request and read the response as a string.
-    std::string ControllerApi::getResponseString(std::string& requestString)
+    std::string ControllerApi::getResponseString(std::string requestString, Reply reply)
     {
-        const bool skipDecryption = requestString.starts_with("Command&Type=Session&SubType=CloseSession") ||
-                                    requestString.starts_with("Request&Type=Backup");
         requestString = buildRequestString(requestString);
         if (m_loggedIn && !m_isHttps)
         {
@@ -176,7 +163,7 @@ namespace ict
             m_sessionCookie = parseCookiePair(result->get_header_value("Set-Cookie"));
         }
         std::string response = result->body;
-        if (!skipDecryption && m_loggedIn && !m_isHttps)
+        if (reply == Reply::Decrypt && m_loggedIn && !m_isHttps)
         {
             response = decrypt(response);
         }
@@ -262,39 +249,19 @@ namespace ict
                     , static_cast<std::string::size_type>(decryptedLength)};
     }
 
+    // Clear an active session.
+    void ControllerApi::clearSession()
+    {
+        m_loggedIn = false;
+        m_sessionCookie.clear();
+        m_aesKey = {};
+    }
+
     /* PUBLIC FUNCTIONS */
     // Close any open session before the object goes away.
     ControllerApi::~ControllerApi()
     {
         logout();
-    }
-
-    // Create a sha1 checksum from a string.
-    std::string ControllerApi::sha1Hex(const std::string& inputString)
-    {
-        unsigned char digest[EVP_MAX_MD_SIZE];
-        unsigned int digestLength = 0;
-        EVP_MD_CTX* ctx = EVP_MD_CTX_new();
-        if (!ctx)
-        {
-            throw std::runtime_error("Failed to create EVP context");
-        }
-        if (EVP_DigestInit_ex(ctx, EVP_sha1(), nullptr) != 1
-            || EVP_DigestUpdate(ctx, inputString.data(), inputString.size()) != 1
-            || EVP_DigestFinal_ex(ctx, digest, &digestLength) != 1)
-        {
-            EVP_MD_CTX_free(ctx);
-            throw std::runtime_error("Failed to compute SHA-1");
-        }
-        EVP_MD_CTX_free(ctx);
-        std::ostringstream oss;
-        oss << std::uppercase << std::hex;
-        for (unsigned int i = 0; i < digestLength; ++i)
-        {
-            oss << std::hex << std::setw(2) << std::setfill('0')
-                << static_cast<int>(digest[i]);
-        }
-        return oss.str();
     }
 
     // Return the message from the most recent failed call, for a frontend to display.
@@ -367,8 +334,8 @@ namespace ict
         bool closed = false;
         try
         {
-            std::string parameters = "Command&Type=Session&SubType=CloseSession";
-            getResponseString(parameters);
+            const std::string parameters = "Command&Type=Session&SubType=CloseSession";
+            getResponseString(parameters, Reply::Raw);
             closed = true;
         }
         catch (const std::exception& e)
@@ -378,50 +345,38 @@ namespace ict
         catch (...)
         {
         }
-        m_loggedIn = false;
-        m_sessionCookie.clear();
-        m_aesKey = {};
+        clearSession();
         return closed;
     }
 
-    // Request a response table from the controller.
-    std::optional<ResponseTable> ControllerApi::sendRequest(const std::string& type, const std::string& subType)
+    // Restart all expansion modules.
+    bool ControllerApi::restartAllModules()
     {
-        std::string parameters;
-        switch (toRequestType(type))
+        return sendCommand(CommandType::Modules, "Restart", {{"Module", "All"}});
+    }
+
+    // Restart the controller.
+    bool ControllerApi::restartController()
+    {
+        try
         {
-            case RequestType::List:
-            case RequestType::Detail:
-            case RequestType::Events:
-            case RequestType::Status:
-            case RequestType::Health:
-            case RequestType::Modules:
-            case RequestType::DuplicateCheck:
-            case RequestType::System:
-                parameters = "Request&Type=" + type + "&SubType=" + subType;
-                break;
-            case RequestType::Backup:
-                parameters = "Request&Type=" + type;
-                break;
-            default:
-                throw std::runtime_error("Unknown request type: " + type);
+            if (!sendCommand(CommandType::RestartController))
+                return false;
         }
-        const std::string response = trim(getResponseString(parameters));
-        if (isFailResponse(response))
+        catch (const std::exception& e)
         {
-            m_lastError = response;
-            logMessage(LogLevel::Error, "ControllerApi::sendRequest"
-                        , type + " " + subType + ": " + m_lastError);
-            return std::nullopt;
+            // The controller can drop connection before replying "OK".
+            logMessage(LogLevel::Warning, "ControllerApi::restartController", e.what());
         }
-        return parseQueryString(response);
+        clearSession();
+        return true;
     }
 
     // Download a database backup.
     std::optional<std::string> ControllerApi::downloadBackup()
     {
-        std::string parameters = "Request&Type=Backup";
-        std::string response = getResponseString(parameters);
+        const std::string parameters = "Request&Type=Backup";
+        std::string response = getResponseString(parameters, Reply::Raw);
         if (isFailResponse(response))
         {
             m_lastError = trim(response);
@@ -431,38 +386,33 @@ namespace ict
         return response;
     }
 
-    // Send a command to the controller.
-    bool ControllerApi::sendCommand(const std::string& type, const std::string& subType, const std::string& recId
-                                  , const std::string& command, const std::string& data1, const std::string& data2)
+    // Request a response table from the controller.
+    std::optional<KeyValueList> ControllerApi::sendRequest(const RequestType type, const std::string& subType, const KeyValueList& params)
     {
-        std::string parameters;
-        switch (toCommandType(type))
+        const std::string typeString = toString(type);
+        const std::string parameters = buildParameters("Request", typeString, subType, params);
+        const std::string response = trim(getResponseString(parameters));
+        if (isFailResponse(response))
         {
-            case CommandType::Submit:
-            case CommandType::Modules:
-            case CommandType::Restore:
-                parameters = "Command&Type=" + type + "&SubType=" + subType;
-                break;
-            case CommandType::Delete:
-                parameters = "Command&Type=" + type + "&SubType=" + subType + "&RecId=" + recId;
-                break;
-            case CommandType::Control:
-                parameters = "Command&Type=" + type + "&SubType=" + subType + "&RecId=" + recId + "&Command=" + command;
-                if (!data1.empty()) {parameters += "&Data1=" + data1;}
-                if (!data2.empty()) {parameters += "&Data2=" + data2;}
-                break;
-            case CommandType::RestartController:
-                parameters = "Command&Type=" + type;
-                break;
-            default:
-                throw std::runtime_error("Unknown command type: " + type);
+            m_lastError = response;
+            logMessage(LogLevel::Error, "ControllerApi::sendRequest"
+                        , typeString + " " + subType + ": " + m_lastError);
+            return std::nullopt;
         }
+        return parseQueryString(response);
+    }
+
+    // Send a command to the controller.
+    bool ControllerApi::sendCommand(const CommandType type, const std::string& subType, const KeyValueList& params)
+    {
+        const std::string typeString = toString(type);
+        const std::string parameters = buildParameters("Command", typeString, subType, params);
         const std::string response = trim(getResponseString(parameters));
         if (!response.starts_with("OK"))
         {
             m_lastError = response;
-            logMessage(LogLevel::Error, "ControllerApi::sendCommand"
-                        , type + " " + subType + ": " + m_lastError);
+            logMessage(LogLevel::Error, "ControllerApi::sendCommand",
+                       typeString + " " + subType + ": " + m_lastError);
             return false;
         }
         return true;

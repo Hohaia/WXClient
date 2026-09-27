@@ -8,63 +8,45 @@
 #include <span>
 #include <string>
 
-#include "helpers.h"
+#include "controller_api.h"
+#include "protocol.h"
 
 namespace ict
 {
     struct StaticMenuItem
     {
-        int key;
+        std::string key;
         std::string_view label;
+        bool gapBefore = false;
     };
 
     std::string readLine(const std::string& prompt);
     bool readYesNo(const std::string& prompt);
     std::string readPassword(const std::string& prompt);
-    void printTable(const ResponseTable& table);
+    void printTable(const KeyValueList& table);
     void printError(const std::string& message);
     void waitForEnter();
 
     // Print a menu to the console.
     template <class T>
-    int printMenu(std::span<const T> menu, std::string_view title)
+    std::string printMenu(const ControllerApi& wx, std::span<const T> menu, std::string_view title)
     {
         std::cout << "\033[2J\033[H"; // Clear console, set cursor to top-left.
-        std::cout << "<<<<<" << title << ">>>>>\n\n";
+        std::cout << "<<<<<" << title << ">>>>>\n";
+        std::cout << "Serial Number: " << wx.m_serialNumber << "\n\n";
         for (const auto& item : menu)
         {
+            if (item.gapBefore)
+                std::cout << "\n";
             std::cout << item.key << ". " << item.label << "\n";
         }
-        int choice = 0;
         while (true)
         {
-            bool validChoice = false;
-            std::string input = readLine("\nSelect: ");
-            try
-            {
-                choice = std::stoi(input);
-            }
-            catch (const std::exception&)
-            {
-                std::cout << "Please enter a valid choice.\n";
-                continue;
-            }
-            for (const auto& item : menu)
-            {
-                if (choice == item.key)
-                {
-                    validChoice = true;
-                    break;
-                }
-            }
-            if (!validChoice)
-            {
-                std::cout << "Please enter a valid choice.\n";
-                continue;
-            }
-            break;
+            std::string choice = readLine("\nSelect: ");
+            if (std::ranges::any_of(menu, [&choice](const T& item) { return item.key == choice; }))
+                return choice;
+            std::cout << "Please enter a valid choice.\n";
         }
-        return choice;
     }
 }
 

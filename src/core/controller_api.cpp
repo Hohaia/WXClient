@@ -109,6 +109,7 @@ namespace ict
         cli.set_connection_timeout(5);
         cli.set_read_timeout(5);
         cli.set_write_timeout(5);
+        cli.set_keep_alive(true);
         return cli;
     }
 

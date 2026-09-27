@@ -103,7 +103,6 @@ namespace ict
     // Create the http client.
     httplib::Client ControllerApi::createClient() const
     {
-        std::string protocol;
         const std::string cliDomain = std::string(m_isHttps ? "https" : "http") + "://" + m_host + "/";
         httplib::Client cli(cliDomain);
         cli.enable_server_certificate_verification(false);
@@ -344,6 +343,8 @@ namespace ict
         }
         catch (...)
         {
+            // Never let an exception escape: the destructor calls logout().
+            logMessage(LogLevel::Warning, "ControllerApi::logout", "Unknown error while closing the session");
         }
         clearSession();
         return closed;

@@ -81,8 +81,9 @@ namespace ict
             {
                 const auto statuses = fetchStatuses(wx, std::string(subMenu.tableName));
                 std::vector<std::string> labels;
+                labels.reserve(items.size());
                 for (const auto& item : items)
-                    labels.push_back(itemLabel(item, statuses, subMenu.tableName));
+                    labels.emplace_back(itemLabel(item, statuses, subMenu.tableName));
 
                 std::vector<StaticMenuItem> display;
                 for (size_t i = 0; i < items.size(); ++i)

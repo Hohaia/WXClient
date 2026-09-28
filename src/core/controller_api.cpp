@@ -5,6 +5,7 @@
 #include "controller_api.h"
 
 #include <algorithm>
+#include <cctype>
 #include <charconv>
 #include <cstdint>
 #include <stdexcept>
@@ -163,7 +164,7 @@ namespace ict
             m_sessionCookie = parseCookiePair(result->get_header_value("Set-Cookie"));
         }
         std::string response = result->body;
-        if (reply == Reply::Decrypt && m_loggedIn && !m_isHttps)
+        if (reply == Reply::Decrypt && m_loggedIn && !m_isHttps && !isFailResponse(response))
         {
             response = decrypt(response);
         }
@@ -215,6 +216,13 @@ namespace ict
     // Decrypt a string.
     std::string ControllerApi::decrypt(const std::string& encryptedResponse) const
     {
+        if (encryptedResponse.size() < 32 ||
+            encryptedResponse.size() % 2 != 0 ||
+            !std::ranges::all_of(encryptedResponse, [](unsigned char c)
+            {return std::isxdigit(c);}))
+        {
+            throw std::runtime_error("Unexpected unencrypted response: " + trim(encryptedResponse).substr(0, 200));
+        }
         const std::string ivStr = encryptedResponse.substr(0, 32);
         const std::string encryptedStr = encryptedResponse.substr(32);
         const auto iv = fromHex(ivStr);

@@ -11,9 +11,12 @@
 
 namespace ict
 {
+    // Ordered key=value pairs, as in a request or reply ({"RecId", "3"} <-> "RecId=3").
     using KeyValueList = std::vector<std::pair<std::string, std::string>>;
 
+    // Request&Type=<RequestType> ("List").
     enum class RequestType {List, Detail, Events, Status, Health, Modules, DuplicateCheck, System};
+    // Command&Type=<CommandType> ("Control").
     enum class CommandType {Submit, Delete, Modules, Control, RestartController};
 
     [[nodiscard]] std::string encodeStringValue(const std::string& value);

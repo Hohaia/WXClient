@@ -10,6 +10,7 @@
 
 namespace ict
 {
+    // Severity of the log line.
     enum class LogLevel {Info, Warning, Error};
 
     std::filesystem::path logFilePath();

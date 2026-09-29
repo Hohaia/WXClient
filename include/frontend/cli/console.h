@@ -13,6 +13,7 @@
 
 namespace ict
 {
+    // A single cli menu line ([key: "1", label: "Doors"] -> 1. Doors).
     struct StaticMenuItem
     {
         std::string key;

@@ -15,6 +15,7 @@
 
 namespace ict
 {
+    // The communication layer to a specific ICT Protege WX controller.
     class ControllerApi
     {
         enum class Reply {Decrypt, Raw}; // Raw: logout and backup replies are never encrypted.

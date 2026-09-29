@@ -16,9 +16,13 @@
 
 namespace ict
 {
+    // Cache of a table's contents ("GXT_DOORS_TBL": {"0", "Entry Door"}, {"1", "Side Door"}, {...}).
     using RecordListCache = std::unordered_map<std::string, std::vector<RecordEntry>>;
-    using StatusMap = std::unordered_map<std::string, std::string>; // recID -> raw status, e.g. "0" -> "23,3,0"
 
+    // recID -> raw status, (e.g. "0" -> "23,3,0").
+    using StatusMap = std::unordered_map<std::string, std::string>;
+
+    // The result of a controller backup call.
     struct BackupResult
     {
         std::optional<std::filesystem::path> backupPath; // Set on success.

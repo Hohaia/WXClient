@@ -11,6 +11,7 @@
 
 namespace ict
 {
+    // A single decoded field (name: "Position", text: "Left Open").
     struct DecodedField
     {
         std::string_view name;

@@ -11,14 +11,17 @@
 
 namespace ict
 {
+    // How to decode a single field, e.g. for doorPositionStatus (Value: 3 -> "Left Open", Bits: 3 -> 011, Raw: 3 as is).
     enum class StatusType { Value, Bits, Raw };
 
+    // A single status code and a label for it (code: 0, label: "Locked").
     struct StatusCodeLabel
     {
         int code; // Value: the code. Bits: the bit number.
-        std::string_view text;
+        std::string_view label;
     };
 
+    // One part of a record's status and how to decode it (name: "Lock", type: StatusType::Value, labels: doorLockStatusCodes).
     struct StatusCodeField
     {
         std::string_view name;
@@ -26,13 +29,14 @@ namespace ict
         std::span<const StatusCodeLabel> labels;
     };
 
+    // All the status fields for one controller table (tableName: "GXT_DOORS_TBL", fields: doorStatusFields).
     struct StatusCodeTable
     {
-        std::string_view tableName;
+        std::string_view name;
         std::span<const StatusCodeField> fields;
     };
 
-    // Doors.
+    // 'Door Lock Status' from 'status.md' (as a StatusCodeLabel {code, label} pair).
     constexpr std::array doorLockStatusCodes{
         StatusCodeLabel{0, "Locked"},
         StatusCodeLabel{1, "Unlocked by User"},
@@ -60,6 +64,8 @@ namespace ict
         StatusCodeLabel{23, "Not Locked (locked, door not secure)"},
         StatusCodeLabel{24, "Not Locked Conditional (locked, door not secure, calendar action live)"}
     };
+
+    // 'Door Position Status' from 'status.md' (as a StatusCodeLabel {code, label} pair).
     constexpr std::array doorPositionStatusCodes{
         StatusCodeLabel{0, "Closed"},
         StatusCodeLabel{1, "Open"},
@@ -68,16 +74,20 @@ namespace ict
         StatusCodeLabel{4, "Forced Open"},
         StatusCodeLabel{5, "Bonding Fault"}
     };
+
+    // 'Door Flag Bits' from 'status.md' (as a StatusCodeLabel {bit, label} pair).
     constexpr std::array doorFlagStatusCodes{
         StatusCodeLabel{0, "Calendar Action Live"}
     };
+
+    // Door status fields ("0,3,0" -> 0: "Locked", 3: "Left Open", 0: "None" [No Flags]).
     constexpr std::array doorStatusFields{
         StatusCodeField{"Lock", StatusType::Value, doorLockStatusCodes},
         StatusCodeField{"Position", StatusType::Value, doorPositionStatusCodes},
         StatusCodeField{"Flag", StatusType::Bits, doorFlagStatusCodes}
     };
 
-    // All tables.
+    // Status decoding for each controller table.
     constexpr std::array statusCodeTables{
         // StatusCodeTable {"GXT_ANALOGEXPANDERS_TBL", xStatusFields},
         // StatusCodeTable {"GXT_AREAS_TBL", xStatusFields},

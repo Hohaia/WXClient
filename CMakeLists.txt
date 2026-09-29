@@ -10,6 +10,7 @@ find_package(OpenSSL REQUIRED)
 # shared CORE backend
 add_library(wxclient_core OBJECT
 
+        src/core/control.cpp
         src/core/controller_api.cpp
         src/core/helpers.cpp
         src/core/logger.cpp
@@ -17,6 +18,7 @@ add_library(wxclient_core OBJECT
         src/core/status.cpp
         src/core/workflow.cpp
 
+        include/core/control.h
         include/core/controller_api.h
         include/core/helpers.h
         include/core/logger.h
@@ -24,8 +26,9 @@ add_library(wxclient_core OBJECT
         include/core/status.h
         include/core/workflow.h
 
-        include/core/lookup/table_names.h
+        include/core/lookup/control_command_tables.h
         include/core/lookup/status_code_tables.h
+        include/core/lookup/table_names.h
 
         include/vendor/httplib/httplib.h
 )

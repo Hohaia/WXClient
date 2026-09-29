@@ -4,7 +4,7 @@ cmake-build-*/
 build/
 out/
 docs/vendor/
-troubleshooting/
+tools/troubleshooting/
 
 *.user
 *.swp

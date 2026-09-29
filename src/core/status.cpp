@@ -18,7 +18,8 @@ namespace ict
         const StatusCodeTable* findTable(std::string_view tableName)
         {
             const auto it = std::ranges::find_if(statusCodeTables,
-                            [&](const StatusCodeTable& table) { return table.tableName == tableName; });
+                            [&](const StatusCodeTable& table)
+                            { return table.name == tableName;});
             if (it == statusCodeTables.end())
                 return nullptr;
             return &*it;
@@ -30,7 +31,7 @@ namespace ict
                             [code](const StatusCodeLabel& label) { return label.code == code; });
             if (it == labels.end())
                 return std::nullopt;
-            return it->text;
+            return it->label;
         }
 
         std::string decodeValue(const StatusCodeField& field, const int code)

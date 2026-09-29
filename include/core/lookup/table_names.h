@@ -11,18 +11,21 @@
 
 namespace ict
 {
+    // A single entry from a controller table (recId: "0", label: "Entry Door" [door @ address 0]).
     struct RecordEntry
     {
         std::string recId;
         std::string label;
     };
 
+    // Pairs a 'display name' with a controller's 'table name' (label: "Doors", name: "GXT_DOORS_TBL").
     struct TableInfo
     {
         std::string_view label;
-        std::string_view tableName;
+        std::string_view name;
     };
 
+    // An array of all of the controller tables (as a 'TableInfo' {label, name} pair).
     constexpr std::array allTables{
         TableInfo{"Access Levels", "GXT_ACCESSLEVELS_TBL"},
         TableInfo{"Analog Expanders", "GXT_ANALOGEXPANDERS_TBL"},

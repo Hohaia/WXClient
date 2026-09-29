@@ -5,11 +5,14 @@ A C++ client for the ICT Protege WX access controller, using its HTTP API.
 ## Status
 
 Login, session management, and the controller settings query work. The CLI's
-main menu is fully wired: submenu navigation (Doors/Areas/Outputs/Inputs/
-Trouble Inputs) lists live controller data, Backup downloads and saves the
-programming database, Restart sends the restart command, Logout exits. Acting
-on a selected item (`cliCommandMenu`) is not implemented yet — picking one
-from a submenu currently does nothing.
+main menu is fully wired: submenus (Doors/Areas/Outputs/Inputs/Trouble Inputs)
+list live controller data with decoded status, and selecting an item opens a
+control menu for it. Backup saves the programming database; Restart Modules and
+Restart Controller ask for confirmation first; Logout exits.
+
+Control commands and status decoding are implemented for Doors only; the other
+tables show raw status and report "No control commands" until their lookup
+tables are filled in.
 
 ## Requirements
 
@@ -35,7 +38,8 @@ cmake --build build
 
 Prompts for IP/domain, username, password, and whether the controller (not your connection to it) uses HTTPS
 — see [Network path](#network-path) for why that distinction matters.
-After login, the main menu offers the Doors/Areas/Outputs/Inputs/Trouble Inputs submenus, plus Backup, Restart, and Logout.
+After login, the main menu offers the Doors/Areas/Outputs/Inputs/Trouble Inputs submenus, plus Backup,
+Restart Modules, Restart Controller, and Logout.
 
 ## Network path
 
@@ -82,14 +86,9 @@ on every exit path, including exceptions.
 each frontend links against it as its own executable, so a GUI never pulls in
 `console.cpp`'s terminal code. `WXClient_GUI` builds today but is a stub.
 
-## Menus
-
-`core/menu_tables.h` holds only frontend-agnostic protocol data — no CLI
-concepts, no selection keys. Anything CLI-specific (the numbered `key`, the
-top-level `mainMenu`) lives in `session.cpp`, since a GUI would select by
-click and wouldn't want either. Submenu names and `RecId`s come from one
-`List` request per table, cached for the session; live status isn't
-fetched yet.
+Protocol data (table names, status codes, control commands) lives in
+`core/lookup/` as `constexpr` tables transcribed from the vendor docs; menu
+keys and the top-level menu stay in the CLI's `session.cpp`.
 
 ## Troubleshooting
 
@@ -104,14 +103,15 @@ every error. For `sendRequest`/`sendCommand`/`downloadBackup`,
 | `FAIL 5` / `FAIL 60`                   | wrong credentials, repeated attempts — wait that many seconds |
 | `FAIL. No valid operator login found.` | controller still on default `admin:admin`                     |
 
-| Message                                     | Cause                                                      |
-|---------------------------------------------|------------------------------------------------------------|
-| `Could not reach controller: Connection`    | wrong `Https?` answer, or nothing listening on that port   |
-| `Could not reach controller: SSLConnection` | answered HTTPS, TLS handshake failed                       |
-| `Could not reach controller: Read`/`Write`  | connected, then timed out (5s, set in `createClient()`)    |
-| `Controller returned HTTP <status>`         | transport fine, request form rejected                      |
-| `Controller returned HTTP 301`/`302`        | redirect, not followed — usually a middlebox forcing HTTPS |
-| `Failed to finalize decryption`             | session key mismatch                                       |
+| Message                                         | Cause                                                      |
+|-------------------------------------------------|------------------------------------------------------------|
+| `Could not reach controller: Connection`        | wrong `Https?` answer, or nothing listening on that port   |
+| `Could not reach controller: SSLConnection`     | answered HTTPS, TLS handshake failed                       |
+| `Could not reach controller: Read`/`Write`      | connected, then timed out (5s, set in `createClient()`)    |
+| `Controller returned HTTP <status>`             | transport fine, request form rejected                      |
+| `Controller returned HTTP 301`/`302`            | redirect, not followed — usually a middlebox forcing HTTPS |
+| `Failed to finalize decryption`                 | session key mismatch                                       |
+| `Command Failed (128) Invalid Command SubType.` | the controller doesn't accept Control for that table       |
 
 Isolate transport from protocol with a raw `InitSession` call:
 
@@ -123,10 +123,10 @@ A bare number in the body means transport and request form are correct.
 
 ## Roadmap
 
-- `cliCommandMenu`: acting on a selected submenu item — currently a stub.
 - Reverse proxy support: planned, needs `isHttps` split into a client
   transport flag and a controller session-scheme flag (see Network path).
-- Live status refresh, further queries beyond `GXT_CONTROLLERSETTINGS_TBL`.
+- Status decoding and control commands for Areas, Outputs, Inputs and Trouble
+  Inputs (Doors done).
 - Hardware verification of the pre-4.00.1676 flow — implemented, untested.
 - Windows: `console.cpp` is POSIX-only by design; a GUI would share only
   `core/`, where `logger.cpp` needs a Windows-specific log path.

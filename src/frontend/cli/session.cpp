@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "console.h"
+#include "control.h"
 #include "controller_api.h"
 #include "table_names.h"
 #include "status.h"
@@ -20,8 +21,10 @@ namespace ict
 {
     namespace
     {
-        enum class MainMenuAction { OpenSubMenu, Backup, RestartModules, Restart, Logout };
+        // The action to take for a specific item in the main menu.
+        enum class MainMenuAction {OpenSubMenu, Backup, RestartModules, Restart, Logout};
 
+        // The contents of a menu item ("1. Doors" -> label: "Doors", action: OpenSubMenu, name: "GXT_DOORS_TBL").
         struct MainMenuItem
         {
             std::string_view label;
@@ -29,6 +32,7 @@ namespace ict
             std::string_view tableName;   // Only meaningful when action == OpenSubMenu.
         };
 
+        // An array of each item in the main menu and what to do when it is selected.
         constexpr std::array mainMenu{
             MainMenuItem{"Doors",               MainMenuAction::OpenSubMenu,    "GXT_DOORS_TBL"},
             MainMenuItem{"Areas",               MainMenuAction::OpenSubMenu,    "GXT_AREAS_TBL"},
@@ -40,12 +44,6 @@ namespace ict
             MainMenuItem{"Restart Controller",  MainMenuAction::Restart,        ""},
             MainMenuItem{"Logout",              MainMenuAction::Logout,         ""}
         };
-
-        // Run a control menu using the selected RecId.
-        void cliCommandMenu(ControllerApi& wx, const TableInfo& table, const std::string& recId)
-        {
-            //TODO
-        }
 
         // Build a menu label with the item's live status, e.g. "Front Door  [Locked, Closed, None]".
         std::string itemLabel(const RecordEntry& item, const std::optional<StatusMap>& statuses, std::string_view tableName)
@@ -65,10 +63,53 @@ namespace ict
             return item.label + "  [" + text + "]";
         }
 
+        // Run a control menu for the selected record.
+        void cliCommandMenu(ControllerApi& wx, const TableInfo& table, const RecordEntry& record)
+        {
+            // Build the commands menu and handle a table with no commands.
+            const auto commands = findControlCommands(table.name);
+            const auto tableName = std::string(table.name);
+            if (commands.empty())
+            {
+                printError("No control commands found: " + std::string(tableName));
+                waitForEnter();
+                return;
+            }
+            std::vector<StaticMenuItem> display;
+            for (size_t i = 0; i < commands.size(); ++i)
+                display.emplace_back(std::to_string(i + 1), commands[i].label);
+            display.emplace_back("r", "Refresh Status", true);
+            display.emplace_back("0", "Back");
+            // A while loop will handle status refresh on command send.
+            while (true)
+            {
+                // Display live status of the selected record in the menu title.
+                const auto statuses = fetchStatuses(wx, tableName);
+                const std::string title = itemLabel(record, statuses, tableName);
+
+                // Show this table's commands and read the choice (0 = back).
+                const std::string choice = printMenu<StaticMenuItem>(wx, display, title);
+                if (choice == "r")
+                    continue; // While loop will refresh statuses.
+                if (choice == "0")
+                    break;
+                const auto& command = commands[std::stoi(choice) - 1];
+
+                // Send a command via core (Control, name, RecId, Command).
+                if (!wx.sendCommand(CommandType::Control, tableName,
+                                 {{"RecId", record.recId}, {"Command", std::to_string(command.code)}}))
+                {
+                    // On failure, printError with wx.lastError().
+                    printError("Command failed: " + wx.lastError());
+                    waitForEnter();
+                }
+            }
+        }
+
         // Run a sub menu.
         void cliSubMenu(ControllerApi& wx, RecordListCache& cachedRecordLists, const TableInfo& subMenu)
         {
-            const auto* fetched = getRecordList(wx, cachedRecordLists, std::string(subMenu.tableName));
+            const auto* fetched = getRecordList(wx, cachedRecordLists, std::string(subMenu.name));
             if (!fetched)
             {
                 printError("Could not load " + std::string(subMenu.label) + ": " + wx.lastError());
@@ -79,11 +120,11 @@ namespace ict
 
             while (true)
             {
-                const auto statuses = fetchStatuses(wx, std::string(subMenu.tableName));
+                const auto statuses = fetchStatuses(wx, std::string(subMenu.name));
                 std::vector<std::string> labels;
                 labels.reserve(items.size());
                 for (const auto& item : items)
-                    labels.emplace_back(itemLabel(item, statuses, subMenu.tableName));
+                    labels.emplace_back(itemLabel(item, statuses, subMenu.name));
 
                 std::vector<StaticMenuItem> display;
                 for (size_t i = 0; i < items.size(); ++i)
@@ -92,11 +133,11 @@ namespace ict
                 display.emplace_back("0", "Back");
 
                 const std::string choice = printMenu<StaticMenuItem>(wx, display, subMenu.label);
-                if (choice == "0")
-                    break;
                 if (choice == "r")
                     continue; // While loop will refresh the statuses.
-                cliCommandMenu(wx, subMenu, items[std::stoi(choice) - 1].recId);
+                if (choice == "0")
+                    break;
+                cliCommandMenu(wx, subMenu, items[std::stoi(choice) - 1]);
             }
         }
 

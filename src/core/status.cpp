@@ -64,8 +64,10 @@ namespace ict::core
             int value = 0;
             const auto* const end = token.data() + token.size();
             const auto [ptr, ec] = std::from_chars(token.data(), end, value);
-            if (ec != std::errc{} || ptr != end || field.type == StatusType::Raw)
+            if (ec != std::errc{} || ptr != end)
                 return std::string(token);
+            if (field.type == StatusType::Raw)
+                return std::string(field.name) + ": " + std::string(token);
             if (field.type == StatusType::Bits)
                 return decodeBits(field, value);
             return decodeValue(field, value);
@@ -93,7 +95,8 @@ namespace ict::core
                 continue;
             }
             const auto& field = table->fields[i];
-            decoded.emplace_back(field.name, decodeField(field, token));
+            const bool isEmpty = field.type != StatusType::Value && token == "0";
+            decoded.emplace_back(field.name, decodeField(field, token), isEmpty);
         }
         return decoded;
     }

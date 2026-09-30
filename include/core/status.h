@@ -16,6 +16,7 @@ namespace ict::core
     {
         std::string_view name;
         std::string text;
+        bool isEmpty = false;
     };
 
     [[nodiscard]] std::vector<DecodedField> decodeStatus(std::string_view tableName, std::string_view rawValue);

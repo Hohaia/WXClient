@@ -45,7 +45,7 @@ namespace ict::cli
             MainMenuItem{"Logout",              MainMenuAction::Logout,         ""}
         };
 
-        // Build a menu label with the item's live status, e.g. "Front Door  [Locked, Closed, None]".
+        // Build a menu label with the item's live status, e.g. "Front Door  [Locked, Closed, [No Flags]]".
         std::string itemLabel(const core::RecordEntry& item, const std::optional<core::StatusMap>& statuses, std::string_view tableName)
         {
             if (!statuses)
@@ -56,6 +56,8 @@ namespace ict::cli
             std::string text;
             for (const auto& field : core::decodeStatus(tableName, it->second))
             {
+                if (field.isEmpty)
+                    continue;
                 if (!text.empty())
                     text += " - ";
                 text += field.text;

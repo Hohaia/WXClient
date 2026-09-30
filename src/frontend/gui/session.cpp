@@ -3,3 +3,8 @@
 //
 
 #include "session.h"
+
+namespace ict::gui
+{
+
+}

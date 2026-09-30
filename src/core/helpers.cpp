@@ -11,7 +11,7 @@
 #include <string_view>
 #include <openssl/evp.h>
 
-namespace ict
+namespace ict::core
 {
     // Remove leading and trailing whitespace from a string.
     std::string trim(const std::string& str)

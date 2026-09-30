@@ -9,7 +9,7 @@
 #include <span>
 #include <string_view>
 
-namespace ict
+namespace ict::core
 {
     // How to decode a single field, e.g. for doorPositionStatus (Value: 3 -> "Left Open", Bits: 3 -> 011, Raw: 3 as is).
     enum class StatusType { Value, Bits, Raw };

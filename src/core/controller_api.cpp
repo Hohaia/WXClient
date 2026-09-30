@@ -16,7 +16,7 @@
 #include "helpers.h"
 #include "logger.h"
 
-namespace ict
+namespace ict::core
 {
     /* PRIVATE FUNCTIONS */
     // Clean up the host address (remove any leading "http://, https://").

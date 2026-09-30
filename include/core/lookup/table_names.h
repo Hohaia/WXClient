@@ -9,7 +9,7 @@
 #include <string>
 #include <string_view>
 
-namespace ict
+namespace ict::core
 {
     // A single entry from a controller table (recId: "0", label: "Entry Door" [door @ address 0]).
     struct RecordEntry

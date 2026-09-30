@@ -12,7 +12,7 @@
 #include <iomanip>
 #include <sstream>
 
-namespace ict
+namespace ict::core
 {
     namespace
     {

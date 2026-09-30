@@ -13,7 +13,7 @@
 #include "logger.h"
 #include "helpers.h"
 
-namespace ict
+namespace ict::cli
 {
     namespace
     {
@@ -53,7 +53,7 @@ namespace ict
     std::string readLine(const std::string& prompt)
     {
         std::cout << prompt << std::flush;
-        return trim(readLineOrThrow());
+        return core::trim(readLineOrThrow());
     }
 
     // Write a prompt and read a y/n answer, repeating until one is given.
@@ -103,7 +103,7 @@ namespace ict
     }
 
     // Print a table.
-    void printTable(const KeyValueList& table)
+    void printTable(const core::KeyValueList& table)
     {
         for (const auto& [key, value] : table)
         {
@@ -115,7 +115,7 @@ namespace ict
     void printError(const std::string& message)
     {
         std::cout << "\n" << message << "\n";
-        std::cout << "\nLog file: " << logFilePath().string() << "\n";
+        std::cout << "\nLog file: " << core::logFilePath().string() << "\n";
     }
 
     // Wait for 'Enter' input before continuing.

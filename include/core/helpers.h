@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-namespace ict
+namespace ict::core
 {
     [[nodiscard]] std::string trim(const std::string& str);
     [[nodiscard]] std::string toHex(const std::vector<std::uint8_t>& bytes);

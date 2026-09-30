@@ -17,7 +17,7 @@
 #include "status.h"
 #include "workflow.h"
 
-namespace ict
+namespace ict::cli
 {
     namespace
     {
@@ -46,7 +46,7 @@ namespace ict
         };
 
         // Build a menu label with the item's live status, e.g. "Front Door  [Locked, Closed, None]".
-        std::string itemLabel(const RecordEntry& item, const std::optional<StatusMap>& statuses, std::string_view tableName)
+        std::string itemLabel(const core::RecordEntry& item, const std::optional<core::StatusMap>& statuses, std::string_view tableName)
         {
             if (!statuses)
                 return item.label;
@@ -54,7 +54,7 @@ namespace ict
             if (it == statuses->end())
                 return item.label;
             std::string text;
-            for (const auto& field : decodeStatus(tableName, it->second))
+            for (const auto& field : core::decodeStatus(tableName, it->second))
             {
                 if (!text.empty())
                     text += " - ";
@@ -64,10 +64,10 @@ namespace ict
         }
 
         // Run a control menu for the selected record.
-        void cliCommandMenu(ControllerApi& wx, const TableInfo& table, const RecordEntry& record)
+        void cliCommandMenu(core::ControllerApi& wx, const core::TableInfo& table, const core::RecordEntry& record)
         {
             // Build the commands menu and handle a table with no commands.
-            const auto commands = findControlCommands(table.name);
+            const auto commands = core::findControlCommands(table.name);
             const auto tableName = std::string(table.name);
             if (commands.empty())
             {
@@ -84,7 +84,7 @@ namespace ict
             while (true)
             {
                 // Display live status of the selected record in the menu title.
-                const auto statuses = fetchStatuses(wx, tableName);
+                const auto statuses = core::fetchStatuses(wx, tableName);
                 const std::string title = itemLabel(record, statuses, tableName);
 
                 // Show this table's commands and read the choice (0 = back).
@@ -96,7 +96,7 @@ namespace ict
                 const auto& command = commands[std::stoi(choice) - 1];
 
                 // Send a command via core (Control, name, RecId, Command).
-                if (!wx.sendCommand(CommandType::Control, tableName,
+                if (!wx.sendCommand(core::CommandType::Control, tableName,
                                  {{"RecId", record.recId}, {"Command", std::to_string(command.code)}}))
                 {
                     // On failure, printError with wx.lastError().
@@ -107,9 +107,9 @@ namespace ict
         }
 
         // Run a sub menu.
-        void cliSubMenu(ControllerApi& wx, RecordListCache& cachedRecordLists, const TableInfo& subMenu)
+        void cliSubMenu(core::ControllerApi& wx, core::RecordListCache& cachedRecordLists, const core::TableInfo& subMenu)
         {
-            const auto* fetched = getRecordList(wx, cachedRecordLists, std::string(subMenu.name));
+            const auto* fetched = core::getRecordList(wx, cachedRecordLists, std::string(subMenu.name));
             if (!fetched)
             {
                 printError("Could not load " + std::string(subMenu.label) + ": " + wx.lastError());
@@ -120,7 +120,7 @@ namespace ict
 
             while (true)
             {
-                const auto statuses = fetchStatuses(wx, std::string(subMenu.name));
+                const auto statuses = core::fetchStatuses(wx, std::string(subMenu.name));
                 std::vector<std::string> labels;
                 labels.reserve(items.size());
                 for (const auto& item : items)
@@ -142,9 +142,9 @@ namespace ict
         }
 
         // Download a backup to the Downloads folder.
-        void cliBackup(ControllerApi& wx)
+        void cliBackup(core::ControllerApi& wx)
         {
-            const auto directory = defaultBackupDirectory();
+            const auto directory = core::defaultBackupDirectory();
             if (!directory)
             {
                 printError("Backup failed: could not find the Downloads folder.");
@@ -152,7 +152,7 @@ namespace ict
                 return;
             }
             std::cout << "\nDownloading backup...\n";
-            const BackupResult result = saveBackup(wx, *directory);
+            const core::BackupResult result = core::saveBackup(wx, *directory);
             if (!result.backupPath)
             {
                 printError("Backup failed: " + result.error);
@@ -164,7 +164,7 @@ namespace ict
         }
 
         // Restart all expansion modules.
-        void cliRestartModules(ControllerApi& wx)
+        void cliRestartModules(core::ControllerApi& wx)
         {
             if (!readYesNo("\nAre you sure you want to restart all modules? (y/n): "))
                 return;
@@ -179,7 +179,7 @@ namespace ict
         }
 
         // Restart the controller.
-        bool cliRestart(ControllerApi& wx)
+        bool cliRestart(core::ControllerApi& wx)
         {
             if (!readYesNo("\nAre you sure you want to restart the Controller? (y/n): "))
                 return false;
@@ -195,9 +195,9 @@ namespace ict
         }
 
         // Run the main menu.
-        int cliMainMenu(ControllerApi& wx)
+        int cliMainMenu(core::ControllerApi& wx)
         {
-            RecordListCache cachedRecordLists;
+            core::RecordListCache cachedRecordLists;
             std::vector<StaticMenuItem> display;
             int key = 1;
             for (const auto& item : mainMenu)
@@ -232,8 +232,8 @@ namespace ict
         const std::string password = readPassword("\nPassword: ");
         const bool isHttps = readYesNo("\nIs the controller using Https? (y/n): ");
 
-        ControllerApi wx(domain, isHttps); // The session is closed by ControllerApi's destructor when wx goes out of scope.
-        if (!loginAndFetchSettings(wx, userName, password))
+        core::ControllerApi wx(domain, isHttps); // The session is closed by ControllerApi's destructor when wx goes out of scope.
+        if (!core::loginAndFetchSettings(wx, userName, password))
         {
             printError("Failed to log in: " + wx.lastError());
             return 1;

@@ -11,7 +11,7 @@
 #include "controller_api.h"
 #include "protocol.h"
 
-namespace ict
+namespace ict::cli
 {
     // A single cli menu line ([key: "1", label: "Doors"] -> 1. Doors).
     struct StaticMenuItem
@@ -24,13 +24,13 @@ namespace ict
     std::string readLine(const std::string& prompt);
     bool readYesNo(const std::string& prompt);
     std::string readPassword(const std::string& prompt);
-    void printTable(const KeyValueList& table);
+    void printTable(const core::KeyValueList& table);
     void printError(const std::string& message);
     void waitForEnter();
 
     // Print a menu to the console.
     template <class T>
-    std::string printMenu(const ControllerApi& wx, std::span<const T> menu, std::string_view title)
+    std::string printMenu(const core::ControllerApi& wx, std::span<const T> menu, std::string_view title)
     {
         std::cout << "\033[2J\033[H"; // Clear console, set cursor to top-left.
         std::cout << "<<<<<" << title << ">>>>>\n";

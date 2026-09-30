@@ -5,7 +5,7 @@
 #ifndef WXCLIENT_CLI_SESSION_H
 #define WXCLIENT_CLI_SESSION_H
 
-namespace ict
+namespace ict::cli
 {
     int runCli();
 }

@@ -16,7 +16,7 @@
 #include "helpers.h"
 #include "logger.h"
 
-namespace ict
+namespace ict::core
 {
     namespace
     {
@@ -96,7 +96,7 @@ namespace ict
         }
         wx.m_settings = wx.sendRequest(RequestType::Detail, "GXT_CONTROLLERSETTINGS_TBL");
         if (!wx.m_settings)
-            return true;   // Logged in, but no settings; runCli checks wx.m_settings.
+            return true;   // Logged in, but no settings; the caller checks wx.m_settings.
         const auto serialIt = std::ranges::find_if(*wx.m_settings,
                               [](const auto& kv) { return kv.first == "SERIALNUMBER"; });
         wx.m_serialNumber = serialIt != wx.m_settings->end() ? serialIt->second : "UNKNOWN";

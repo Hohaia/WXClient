@@ -11,7 +11,7 @@
 
 #include "status_code_tables.h"
 
-namespace ict
+namespace ict::core
 {
     namespace
     {

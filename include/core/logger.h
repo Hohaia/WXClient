@@ -8,7 +8,7 @@
 #include <filesystem>
 #include <string>
 
-namespace ict
+namespace ict::core
 {
     // Severity of the log line.
     enum class LogLevel {Info, Warning, Error};

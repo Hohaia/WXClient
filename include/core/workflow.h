@@ -14,7 +14,7 @@
 #include "controller_api.h"
 #include "table_names.h"
 
-namespace ict
+namespace ict::core
 {
     // Cache of a table's contents ("GXT_DOORS_TBL": {"0", "Entry Door"}, {"1", "Side Door"}, {...}).
     using RecordListCache = std::unordered_map<std::string, std::vector<RecordEntry>>;

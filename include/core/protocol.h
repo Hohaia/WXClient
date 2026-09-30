@@ -9,7 +9,7 @@
 #include <utility>
 #include <vector>
 
-namespace ict
+namespace ict::core
 {
     // Ordered key=value pairs, as in a request or reply ({"RecId", "3"} <-> "RecId=3").
     using KeyValueList = std::vector<std::pair<std::string, std::string>>;

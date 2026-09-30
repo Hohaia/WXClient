@@ -6,7 +6,7 @@
 
 #include <algorithm>
 
-namespace ict
+namespace ict::core
 {
     // Find the control commands for a table (empty if the table has none).
     std::span<const ControlCommand> findControlCommands(std::string_view name)

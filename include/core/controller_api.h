@@ -6,14 +6,14 @@
 #define WXCLIENT_CONTROLLERAPI_H
 
 #include <array>
-#include <cstdint>
+#include <cstdint> // IWYU pragma: keep
 #include <httplib.h>
 #include <optional>
 #include <string>
 
 #include "protocol.h"
 
-namespace ict
+namespace ict::core
 {
     // The communication layer to a specific ICT Protege WX controller.
     class ControllerApi

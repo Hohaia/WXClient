@@ -9,7 +9,7 @@
 #include <string_view>
 #include <vector>
 
-namespace ict
+namespace ict::core
 {
     // A single decoded field (name: "Position", text: "Left Open").
     struct DecodedField

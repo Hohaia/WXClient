@@ -9,12 +9,12 @@ int main()
 {
     try
     {
-        return ict::runCli();
+        return ict::cli::runCli();
     }
     catch (const std::exception& e)
     {
-        ict::logMessage(ict::LogLevel::Error, "main", e.what());
-        ict::printError(e.what());
+        ict::core::logMessage(ict::core::LogLevel::Error, "main", e.what());
+        ict::cli::printError(e.what());
         return 1;
     }
 }

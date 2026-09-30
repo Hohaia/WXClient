@@ -9,7 +9,7 @@
 #include <span>
 #include <string_view>
 
-namespace ict
+namespace ict::core
 {
     // A single control command (code: 1, label: "Unlock").
     struct ControlCommand

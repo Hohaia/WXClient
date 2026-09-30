@@ -11,7 +11,7 @@
 #include "control_command_tables.h"
 
 
-namespace ict
+namespace ict::core
 {
     [[nodiscard]] std::span<const ControlCommand> findControlCommands(std::string_view name);
 }

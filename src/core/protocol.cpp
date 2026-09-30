@@ -6,7 +6,7 @@
 
 #include "helpers.h"
 
-namespace ict
+namespace ict::core
 {
     // Replace the characters the controller reserves in request values (see overview-api-requests.md).
     std::string encodeStringValue(const std::string& value)

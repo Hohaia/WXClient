@@ -26,15 +26,20 @@ add_library(wxclient_core OBJECT
         include/core/status.h
         include/core/workflow.h
 
-        include/core/lookup/control_command_tables.h
-        include/core/lookup/status_code_tables.h
         include/core/lookup/table_names.h
+        include/core/lookup/command/control_command_tables.h
+        include/core/lookup/status/area_status_tables.h
+        include/core/lookup/status/door_status_tables.h
+        include/core/lookup/status/status_code_tables.h
+        include/core/lookup/status/status_code_types.h
 
         include/vendor/httplib/httplib.h
 )
 target_include_directories(wxclient_core PUBLIC
         ${CMAKE_SOURCE_DIR}/include/core
         ${CMAKE_SOURCE_DIR}/include/core/lookup
+        ${CMAKE_SOURCE_DIR}/include/core/lookup/command
+        ${CMAKE_SOURCE_DIR}/include/core/lookup/status
 )
 target_include_directories(wxclient_core SYSTEM PUBLIC
         ${CMAKE_SOURCE_DIR}/include/vendor/httplib

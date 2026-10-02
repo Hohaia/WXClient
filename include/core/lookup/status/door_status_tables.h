@@ -51,7 +51,7 @@ namespace ict::core
     };
 
     // 'Status 3 - Door Flag Bits' (as a StatusCodeLabel {bit, label} pair).
-    constexpr std::array doorFlagStatusCodes{
+    constexpr std::array doorFlagBits{
         StatusCodeLabel{0, "Calendar Action Live"}
     };
 
@@ -59,7 +59,7 @@ namespace ict::core
     constexpr std::array doorStatusFields{
         StatusCodeField{"Lock", StatusType::Value, doorLockStatusCodes},
         StatusCodeField{"Position", StatusType::Value, doorPositionStatusCodes},
-        StatusCodeField{"Flag", StatusType::Bits, doorFlagStatusCodes}
+        StatusCodeField{"Flag(s)", StatusType::Bits, doorFlagBits}
     };
 }
 

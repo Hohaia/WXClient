@@ -30,8 +30,11 @@ add_library(wxclient_core OBJECT
         include/core/lookup/command/control_command_tables.h
         include/core/lookup/status/area_status_tables.h
         include/core/lookup/status/door_status_tables.h
+        include/core/lookup/status/input_status_tables.h
+        include/core/lookup/status/output_status_tables.h
         include/core/lookup/status/status_code_tables.h
         include/core/lookup/status/status_code_types.h
+        include/core/lookup/status/trouble_input_status_tables.h
 
         include/vendor/httplib/httplib.h
 )

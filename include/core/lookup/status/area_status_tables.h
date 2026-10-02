@@ -46,6 +46,8 @@ namespace ict::core
         StatusCodeLabel{6, "Partial Armed"}
     };
 
+    // 'Status 4 - User Count' (a raw int)
+
     // Area status fields ("0,128,3,0" -> 0: "24hr Disarmed", 128: "Armed", 3: "Alarm Activated, Siren Activated", 0: [No User Count]).
     constexpr std::array areaStatusFields{
         StatusCodeField{"24hr", StatusType::Value, area24HrStatusCodes},

@@ -27,14 +27,19 @@ add_library(wxclient_core OBJECT
         include/core/workflow.h
 
         include/core/lookup/table_names.h
+        include/core/lookup/command/area_control_tables.h
+        include/core/lookup/command/door_control_tables.h
+        include/core/lookup/command/input_control_tables.h
+        include/core/lookup/command/output_control_tables.h
+        include/core/lookup/command/control_command_types.h
         include/core/lookup/command/control_command_tables.h
         include/core/lookup/status/area_status_tables.h
         include/core/lookup/status/door_status_tables.h
         include/core/lookup/status/input_status_tables.h
         include/core/lookup/status/output_status_tables.h
-        include/core/lookup/status/status_code_tables.h
-        include/core/lookup/status/status_code_types.h
         include/core/lookup/status/trouble_input_status_tables.h
+        include/core/lookup/status/status_code_types.h
+        include/core/lookup/status/status_code_tables.h
 
         include/vendor/httplib/httplib.h
 )

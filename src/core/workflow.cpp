@@ -32,56 +32,75 @@ namespace ict::core
             return items;
         }
 
-        // Build the backup file name: Db_<serial>_<dd_Mon_yyyy>.bak
-        std::string backupFileName(const std::string& serialNumber)
+        // Today's date for file names, e.g. "04_Oct_2026".
+        std::string fileDate()
         {
             const std::time_t now = std::time(nullptr);
             std::tm tm{};
             localtime_r(&now, &tm);
             std::ostringstream date;
             date << std::put_time(&tm, "%d_%b_%Y");
-            return "Db_" + serialNumber + "_" + date.str() + ".bak";
+            return date.str();
+        }
+
+        // Write 'data' to directory/fileName, creating the directory if needed.
+        DownloadResult saveFile(const std::filesystem::path& directory, const std::string& fileName, const std::string& data)
+        {
+            std::error_code ec;
+            std::filesystem::create_directories(directory, ec);
+            if (ec)
+            {
+                const std::string error = "Could not create " + directory.string() + ": " + ec.message();
+                logMessage(LogLevel::Error, "saveFile", error);
+                return {std::nullopt, 0, error};
+            }
+            const std::filesystem::path filePath = directory / fileName;
+            std::ofstream out(filePath, std::ios::binary);
+            out.write(data.data(), static_cast<std::streamsize>(data.size()));
+            if (!out)
+            {
+                const std::string error = "Could not write " + filePath.string();
+                logMessage(LogLevel::Error, "saveFile", error);
+                return {std::nullopt, 0, error};
+            }
+            return {filePath, data.size(), ""};
         }
     }
 
-    // Find the default folder to save backups in.
-    std::optional<std::filesystem::path> defaultBackupDirectory()
+    // Find the default folder to save downloads in.
+    std::optional<std::filesystem::path> defaultDownloadDirectory()
     {
         const char* home = std::getenv("HOME");
         if (!home)
         {
-            logMessage(LogLevel::Error, "defaultBackupDirectory", "HOME environment variable is not set");
+            logMessage(LogLevel::Error, "defaultDownloadDirectory", "HOME environment variable is not set");
             return std::nullopt;
         }
         return std::filesystem::path(home) / "Downloads";
     }
 
     // Download a backup from the controller and save it in 'directory'.
-    BackupResult saveBackup(ControllerApi& wx, const std::filesystem::path& directory)
+    DownloadResult saveBackup(ControllerApi& wx, const std::filesystem::path& directory)
     {
         const auto backup = wx.downloadBackup();
         if (!backup)
             return {std::nullopt, 0, wx.lastError()};
+        return saveFile(directory, "Db_" + wx.m_serialNumber + "_" + fileDate() + ".bak", *backup);
+    }
 
-        std::error_code ec;
-        std::filesystem::create_directories(directory, ec);
-        if (ec)
-        {
-            const std::string error = "Could not create " + directory.string() + ": " + ec.message();
-            logMessage(LogLevel::Error, "saveBackup", error);
-            return {std::nullopt, 0, error};
-        }
+    // Download the event log as CSV and save it in 'directory' (empty dates = no limit).
+    DownloadResult saveEventLog(ControllerApi& wx, const std::filesystem::path& directory,
+                                const std::string& startDate, const std::string& endDate)
+    {
+        const auto csv = wx.downloadEventLog(startDate, endDate);
+        if (!csv)
+            return {std::nullopt, 0, wx.lastError()};
 
-        const std::filesystem::path filePath = directory / backupFileName(wx.m_serialNumber);
-        std::ofstream out(filePath, std::ios::binary);
-        out.write(backup->data(), static_cast<std::streamsize>(backup->size()));
-        if (!out)
-        {
-            const std::string error = "Could not write " + filePath.string();
-            logMessage(LogLevel::Error, "saveBackup", error);
-            return {std::nullopt, 0, error};
-        }
-        return {filePath, backup->size(), ""};
+        // Header only: no events in the range (or dates the controller didn't understand); don't save an empty file.
+        const auto headerEnd = csv->find('\n');
+        if (headerEnd == std::string::npos || csv->find_first_not_of("\r\n", headerEnd) == std::string::npos)
+            return {std::nullopt, 0, "No events found for that range. Check the dates.", true};
+        return saveFile(directory, "Events_" + wx.m_serialNumber + "_" + fileDate() + ".csv", *csv);
     }
 
     // Log in, fetch the controllers settings (returns 'true' on successful login).
@@ -129,5 +148,22 @@ namespace ict::core
             statuses.emplace(key.substr(digits), value);   // "Door12" -> "12"
         }
         return statuses;
+    }
+
+    // Fetch event descriptions ("Latest", "Previous", "Next": 20 a time, Update: all since last request); nullopt if the request failed.
+    std::optional<std::vector<std::string>> fetchEvents(ControllerApi& wx, EventRequest request)
+    {
+        const std::optional<KeyValueList> response = wx.sendRequest(RequestType::Events, toString(request));
+        if (!response)
+            return std::nullopt;   // Already logged by ControllerApi.
+        std::vector<std::string> events;
+        for (const auto& [key, value] : *response)
+        {
+            // Keep "Event12", skip "EventCodes12".
+            if (key.size() <= 5 || !key.starts_with("Event") || !std::isdigit(static_cast<unsigned char>(key[5])))
+                continue;
+            events.emplace_back(trim(value));   // Descriptions can end in a space.
+        }
+        return events;
     }
 }

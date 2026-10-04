@@ -13,6 +13,7 @@
 #include "console.h"
 #include "control.h"
 #include "controller_api.h"
+#include "logger.h"
 #include "table_names.h"
 #include "status.h"
 #include "workflow.h"
@@ -22,7 +23,10 @@ namespace ict::cli
     namespace
     {
         // The action to take for a specific item in the main menu.
-        enum class MainMenuAction {OpenSubMenu, Backup, RestartModules, Restart, Logout};
+        enum class MainMenuAction {OpenSubMenu, EventLogs, Backup, RestartModules, Restart};
+
+        // How a submenu was exited.
+        enum class MenuResult {Back, Logout};
 
         // The contents of a menu item ("1. Doors" -> label: "Doors", action: OpenSubMenu, name: "GXT_DOORS_TBL").
         struct MainMenuItem
@@ -39,10 +43,10 @@ namespace ict::cli
             MainMenuItem{"Outputs",             MainMenuAction::OpenSubMenu,    "GXT_PGMS_TBL"},
             MainMenuItem{"Inputs",              MainMenuAction::OpenSubMenu,    "GXT_INPUTS_TBL"},
             MainMenuItem{"Trouble Inputs",      MainMenuAction::OpenSubMenu,    "GXT_TROUBLEINPUTS_TBL"},
+            MainMenuItem{"Event Logs",          MainMenuAction::EventLogs,      ""},
             MainMenuItem{"Backup",              MainMenuAction::Backup,         ""},
             MainMenuItem{"Restart Modules",     MainMenuAction::RestartModules, ""},
-            MainMenuItem{"Restart Controller",  MainMenuAction::Restart,        ""},
-            MainMenuItem{"Logout",              MainMenuAction::Logout,         ""}
+            MainMenuItem{"Restart Controller",  MainMenuAction::Restart,        ""}
         };
 
         // Build a menu label with the item's live status, e.g. "Front Door  [Locked, Closed, [No Flags]]".
@@ -65,17 +69,25 @@ namespace ict::cli
             return item.label + "  [" + text + "]";
         }
 
+        // Add a time to a date-only entry ("01-10-2026" -> "01-10-2026T00:00:00"); anything else is passed through.
+        std::string withTime(const std::string& date, const std::string& time)
+        {
+            if (date.size() != 10)
+                return date;
+            return date + "T" + time;
+        }
+
         // Run a control menu for the selected record.
-        void cliCommandMenu(core::ControllerApi& wx, const core::TableInfo& table, const core::RecordEntry& record)
+        MenuResult cliCommandMenu(core::ControllerApi& wx, const core::TableInfo& table, const core::RecordEntry& record)
         {
             // Build the commands menu and handle a table with no commands.
             const auto commands = core::findControlCommands(table.name);
             const auto tableName = std::string(table.name);
             if (commands.empty())
             {
-                printError("No control commands found: " + std::string(tableName));
+                printError("No control commands found: " + tableName);
                 waitForEnter();
-                return;
+                return MenuResult::Back;
             }
             std::vector<StaticMenuItem> display;
             for (size_t i = 0; i < commands.size(); ++i)
@@ -94,12 +106,18 @@ namespace ict::cli
                 if (choice == "r")
                     continue; // While loop will refresh statuses.
                 if (choice == "0")
-                    break;
+                    return MenuResult::Back;
+                if (choice == "exit")
+                    return MenuResult::Logout;
                 const auto& command = commands[std::stoi(choice) - 1];
 
                 // Send a command via core (Control, name, RecId, Command).
-                if (!wx.sendCommand(core::CommandType::Control, tableName,
-                                 {{"RecId", record.recId}, {"Command", std::to_string(command.code)}}))
+                core::KeyValueList params{{"RecId", record.recId}, {"Command", std::to_string(command.code)}};
+                if (!command.data1.empty())
+                    params.emplace_back("Data1", readLine(std::string(command.data1) + ": "));
+                if (!command.data2.empty())
+                    params.emplace_back("Data2", readLine(std::string(command.data2) + ": "));
+                if (!wx.sendCommand(core::CommandType::Control, tableName, params))
                 {
                     // On failure, printError with wx.lastError().
                     printError("Command failed: " + wx.lastError());
@@ -109,17 +127,17 @@ namespace ict::cli
         }
 
         // Run a sub menu.
-        void cliSubMenu(core::ControllerApi& wx, core::RecordListCache& cachedRecordLists, const core::TableInfo& subMenu)
+        MenuResult cliSubMenu(core::ControllerApi& wx, core::RecordListCache& cachedRecordLists, const core::TableInfo& subMenu)
         {
             const auto* fetched = core::getRecordList(wx, cachedRecordLists, std::string(subMenu.name));
             if (!fetched)
             {
                 printError("Could not load " + std::string(subMenu.label) + ": " + wx.lastError());
                 waitForEnter();
-                return;
+                return MenuResult::Back;
             }
             const auto& items = *fetched;
-
+            const bool hasCommands = !core::findControlCommands(subMenu.name).empty();
             while (true)
             {
                 const auto statuses = core::fetchStatuses(wx, std::string(subMenu.name));
@@ -130,7 +148,7 @@ namespace ict::cli
 
                 std::vector<StaticMenuItem> display;
                 for (size_t i = 0; i < items.size(); ++i)
-                    display.emplace_back(std::to_string (i + 1), labels[i]);
+                    display.emplace_back(hasCommands ? std::to_string (i + 1) : "", labels[i]);
                 display.emplace_back("r", "Refresh Status", true);
                 display.emplace_back("0", "Back");
 
@@ -138,15 +156,87 @@ namespace ict::cli
                 if (choice == "r")
                     continue; // While loop will refresh the statuses.
                 if (choice == "0")
-                    break;
-                cliCommandMenu(wx, subMenu, items[std::stoi(choice) - 1]);
+                    return MenuResult::Back;
+                if (choice == "exit")
+                    return MenuResult::Logout;
+                if (cliCommandMenu(wx, subMenu, items[std::stoi(choice) - 1]) == MenuResult::Logout)
+                    return MenuResult::Logout;
+            }
+        }
+
+        // Download the event log as a .csv to the Downloads folder.
+        void cliDownloadEventLog(core::ControllerApi& wx)
+        {
+            const auto directory = core::defaultDownloadDirectory();
+            if (!directory)
+            {
+                printError("Download failed: could not find the Downloads folder.");
+                waitForEnter();
+                return;
+            }
+            std::cout << "\nDates are dd-mm-yyyy (or dd-mm-yyyyTHH:MM:SS), leave blank for no limit.\n";
+            const std::string startDate = withTime(readLine("Start date: "), "00:00:00");
+            const std::string endDate = withTime(readLine("End date: "), "23:59:59");
+            std::cout << "\nDownloading events...\n";
+            const core::DownloadResult result = core::saveEventLog(wx, *directory, startDate, endDate);
+            if (!result.path)
+            {
+                printError("Download failed: " + result.error);
+                waitForEnter();
+                return;
+            }
+            std::cout << "\nEvents saved to " << result.path->string() << " (" << result.bytes << " bytes)\n";
+            waitForEnter();
+        }
+
+        // Run the event log viewer, 20 events at a time.
+        MenuResult cliEventLogs(core::ControllerApi& wx)
+        {
+            auto request = core::EventRequest::Latest;
+            while (true)
+            {
+                const auto events = core::fetchEvents(wx, request);
+                if (!events)
+                {
+                    printError("Could not load events: " + wx.lastError());
+                    waitForEnter();
+                    return MenuResult::Back;
+                }
+                std::vector<StaticMenuItem> display;
+                for (const auto& event : *events)
+                    display.emplace_back("", event);
+                if (events->empty())
+                    display.emplace_back("", "No events");
+                display.emplace_back("1", "Previous 20", true);
+                display.emplace_back("2", "Next 20");
+                display.emplace_back("r", "Latest");
+                display.emplace_back("d", "Download .csv");
+                display.emplace_back("0", "Back");
+
+                const std::string choice = printMenu<StaticMenuItem>(wx, display, "Event Logs");
+                if (choice == "d")
+                {
+                    cliDownloadEventLog(wx);
+                    request = core::EventRequest::Latest;
+                    continue;
+                }
+                if (choice == "0")
+                    return MenuResult::Back;
+                if (choice == "exit")
+                    return MenuResult::Logout;
+                if (choice == "1")
+                    request = core::EventRequest::Previous;
+                else if (choice == "2")
+                    request = core::EventRequest::Next;
+                else
+                    request = core::EventRequest::Latest;   // "r"
             }
         }
 
         // Download a backup to the Downloads folder.
         void cliBackup(core::ControllerApi& wx)
         {
-            const auto directory = core::defaultBackupDirectory();
+            const auto directory = core::defaultDownloadDirectory();
             if (!directory)
             {
                 printError("Backup failed: could not find the Downloads folder.");
@@ -154,14 +244,14 @@ namespace ict::cli
                 return;
             }
             std::cout << "\nDownloading backup...\n";
-            const core::BackupResult result = core::saveBackup(wx, *directory);
-            if (!result.backupPath)
+            const core::DownloadResult result = core::saveBackup(wx, *directory);
+            if (!result.path)
             {
                 printError("Backup failed: " + result.error);
                 waitForEnter();
                 return;
             }
-            std::cout << "\nBackup saved to " << result.backupPath->string() << " (" << result.bytes << " bytes)\n";
+            std::cout << "\nBackup saved to " << result.path->string() << " (" << result.bytes << " bytes)\n";
             waitForEnter();
         }
 
@@ -203,24 +293,40 @@ namespace ict::cli
             std::vector<StaticMenuItem> display;
             int key = 1;
             for (const auto& item : mainMenu)
-                // Logout always gets key 0, matching the "0 = exit/back" convention
-                // printMenu/cliSubMenu use elsewhere.
-                display.emplace_back(item.action == MainMenuAction::Logout ? "0" : std::to_string(key++), item.label);
+                display.emplace_back(std::to_string(key++), item.label);
             while (true)
             {
                 const std::string choice = printMenu<StaticMenuItem>(wx, display, "Main Menu");
+                if (choice == "exit")
+                    return 0;
                 const auto displayIt = std::ranges::find_if(display, [choice](const StaticMenuItem& item)
                                                             {return item.key == choice;});
-                // 'display' and 'mainMenu' are built in the same loop, same order/length,
-                // so their positions line up — this breaks silently if that ever changes.
-                switch (const auto& selected = mainMenu[std::distance(display.begin(), displayIt)]; selected.action)
+                try
                 {
-                    case MainMenuAction::OpenSubMenu:       cliSubMenu(wx, cachedRecordLists, {selected.label, selected.tableName}); break;
-                    case MainMenuAction::Backup:            cliBackup(wx);  break;
-                    case MainMenuAction::RestartModules:    cliRestartModules(wx); break;
-                    case MainMenuAction::Restart:           if (!cliRestart(wx)) break;
-                                                            return 0;
-                    case MainMenuAction::Logout:            return 0;
+                    // 'display' and 'mainMenu' are built in the same loop, same order/length,
+                    // so their positions line up — this breaks silently if that ever changes.
+                    switch (const auto& selected = mainMenu[std::distance(display.begin(), displayIt)]; selected.action)
+                    {
+                        case MainMenuAction::OpenSubMenu:       if (cliSubMenu(wx, cachedRecordLists, {selected.label, selected.tableName}) == MenuResult::Logout)
+                            return 0;
+                            break;
+                        case MainMenuAction::EventLogs:         if (cliEventLogs(wx) == MenuResult::Logout)
+                            return 0;
+                            break;
+                        case MainMenuAction::Backup:            cliBackup(wx);  break;
+                        case MainMenuAction::RestartModules:    cliRestartModules(wx); break;
+                        case MainMenuAction::Restart:           if (!cliRestart(wx)) break;
+                            return 0;
+                    }
+                }
+                catch (const std::exception& e)
+                {
+                    // Network errors (timeouts, dropped connections) end the session cleanly instead of crashing.
+                    core::logMessage(core::LogLevel::Error, "cliMainMenu", e.what());
+                    printError(e.what());
+                    std::cout << "\nClosing the session.\n";
+                    waitForEnter();
+                    return 1;
                 }
             }
         }

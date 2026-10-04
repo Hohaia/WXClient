@@ -54,7 +54,9 @@ namespace ict::core
     bool ControllerApi::isFailResponse(const std::string& response)
     {
         const std::string trimmedResponse = trim(response);
-        return trimmedResponse.starts_with("FAIL") || trimmedResponse.starts_with("Request Failed");
+        return trimmedResponse.starts_with("FAIL")
+            || trimmedResponse.starts_with("Request Failed")
+            || trimmedResponse.starts_with("Command Failed");
     }
 
     // Parse a session random ID from a controller response.
@@ -107,9 +109,9 @@ namespace ict::core
         const std::string cliDomain = std::string(m_isHttps ? "https" : "http") + "://" + m_host + "/";
         httplib::Client cli(cliDomain);
         cli.enable_server_certificate_verification(false);
-        cli.set_connection_timeout(5);
-        cli.set_read_timeout(5);
-        cli.set_write_timeout(5);
+        cli.set_connection_timeout(requestTimeout);
+        cli.set_read_timeout(requestTimeout);
+        cli.set_write_timeout(requestTimeout);
         cli.set_keep_alive(true);
         return cli;
     }
@@ -382,18 +384,42 @@ namespace ict::core
         return true;
     }
 
-    // Download a database backup.
-    std::optional<std::string> ControllerApi::downloadBackup()
+    // Download a file from the controller without decrypting it.
+    std::optional<std::string> ControllerApi::downloadFile(const std::string& parameters)
     {
-        const std::string parameters = "Request&Type=Backup";
+        // Restore the normal read timeout on every exit, including exceptions.
+        struct TimeoutGuard
+        {
+            httplib::Client& client;
+            ~TimeoutGuard() { client.set_read_timeout(requestTimeout); }
+        } guard{m_client};
+        m_client.set_read_timeout(downloadTimeout);
+
         std::string response = getResponseString(parameters, Reply::Raw);
         if (isFailResponse(response))
         {
             m_lastError = trim(response);
-            logMessage(LogLevel::Error, "ControllerApi::downloadBackup", m_lastError);
+            logMessage(LogLevel::Error, "ControllerApi::downloadFile", m_lastError);
             return std::nullopt;
         }
         return response;
+    }
+
+    // Download a database backup.
+    std::optional<std::string> ControllerApi::downloadBackup()
+    {
+        return downloadFile("Request&Type=Backup");
+    }
+
+    // Download events as CSV, optionally limited to a date range ("dd-mm-yyyyTHH:MM:SS").
+    std::optional<std::string> ControllerApi::downloadEventLog(const std::string& startDate, const std::string& endDate)
+    {
+        KeyValueList params;
+        if (!startDate.empty())
+            params.emplace_back("StartDate", startDate);
+        if (!endDate.empty())
+            params.emplace_back("EndDate", endDate);
+        return downloadFile(buildParameters("Request", toString(RequestType::Events), "ExportCSV", params));
     }
 
     // Request a response table from the controller.

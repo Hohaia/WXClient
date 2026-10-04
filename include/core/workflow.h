@@ -22,19 +22,23 @@ namespace ict::core
     // recID -> raw status, (e.g. "0" -> "23,3,0").
     using StatusMap = std::unordered_map<std::string, std::string>;
 
-    // The result of a controller backup call.
-    struct BackupResult
+    // The result of a controller file download.
+    struct DownloadResult
     {
-        std::optional<std::filesystem::path> backupPath; // Set on success.
+        std::optional<std::filesystem::path> path;  // Set on success.
         std::size_t bytes{};
-        std::string error;                               // Set on failure.
+        std::string error;                          // Set on failure.
+        bool isEmpty{};                             // Event log only: header with no events.
     };
 
-    std::optional<std::filesystem::path> defaultBackupDirectory();
-    BackupResult saveBackup(ControllerApi& wx, const std::filesystem::path& directory);
+    std::optional<std::filesystem::path> defaultDownloadDirectory();
+    DownloadResult saveBackup(ControllerApi& wx, const std::filesystem::path& directory);
+    DownloadResult saveEventLog(ControllerApi& wx, const std::filesystem::path& directory,
+                                const std::string& startDate, const std::string& endDate);
     bool loginAndFetchSettings(ControllerApi& wx, const std::string& userName, const std::string& password);
     const std::vector<RecordEntry>* getRecordList(ControllerApi& wx, RecordListCache& cache, const std::string& tableName);
     std::optional<StatusMap> fetchStatuses(ControllerApi& wx, const std::string& tableName);
+    std::optional<std::vector<std::string>> fetchEvents(ControllerApi& wx, EventRequest request);
 }
 
 #endif //WXCLIENT_WORKFLOW_H

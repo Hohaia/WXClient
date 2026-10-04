@@ -4,6 +4,8 @@
 #ifndef WXCLIENT_CONSOLE_H
 #define WXCLIENT_CONSOLE_H
 
+#include <algorithm>
+#include <cctype>
 #include <iostream>
 #include <span>
 #include <string>
@@ -39,12 +41,25 @@ namespace ict::cli
         {
             if (item.gapBefore)
                 std::cout << "\n";
-            std::cout << item.key << ". " << item.label << "\n";
+            if (item.key.empty())
+                std::cout << "\u2022  " << item.label << "\n"; // Info only line (not selectable).
+            else
+                std::cout << item.key << ". " << item.label << "\n";
         }
+        std::cout << "\nType \"exit\" to log out.\n";
         while (true)
         {
             std::string choice = readLine("\nSelect: ");
-            if (std::ranges::any_of(menu, [&choice](const T& item) { return item.key == choice; }))
+            std::ranges::transform(choice, choice.begin(),
+                                   [](const unsigned char ch)
+                                   {return static_cast<char>(std::tolower(ch));});
+            if (choice == "exit")
+            {
+                if (readYesNo("\nAre you sure you want to log out? (y/n): "))
+                    return choice;
+                continue;
+            }
+            if (!choice.empty() && std::ranges::any_of(menu, [&choice](const T& item) { return item.key == choice; }))
                 return choice;
             std::cout << "Please enter a valid choice.\n";
         }

@@ -100,4 +100,17 @@ namespace ict::core
         }
         return {};
     }
+
+    // Convert an EventRequest to a string for fetchEvents().
+    std::string toString(const EventRequest request)
+    {
+        switch (request)
+        {
+            case EventRequest::Latest:     return "Latest";
+            case EventRequest::Previous:   return "Previous";
+            case EventRequest::Next:       return "Next";
+            case EventRequest::Update:     return "Update";
+        }
+        return {};
+    }
 }

@@ -5,8 +5,6 @@
 #ifndef WXCLIENT_STATUS_CODE_TABLES_H
 #define WXCLIENT_STATUS_CODE_TABLES_H
 
-#include <array>
-
 #include "area_status_tables.h"
 #include "door_status_tables.h"
 #include "input_status_tables.h"

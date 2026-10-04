@@ -18,10 +18,12 @@ namespace ict::core
     // The communication layer to a specific ICT Protege WX controller.
     class ControllerApi
     {
-        enum class Reply {Decrypt, Raw}; // Raw: logout and backup replies are never encrypted.
+        enum class Reply {Decrypt, Raw}; // Raw: logout, backup and event export replies are never encrypted.
 
         //variables
         static constexpr const char* m_path = "/PRT_CTRL_DIN_ISAPI.dll?";
+        static constexpr time_t requestTimeout = 5;     // Seconds; normal requests.
+        static constexpr time_t downloadTimeout = 300;  // Seconds; exports can take longer to build.
         std::array<std::uint8_t, 16> m_aesKey{};
         std::string m_sessionCookie;
         std::string m_lastError;
@@ -68,6 +70,7 @@ namespace ict::core
         [[nodiscard]] httplib::Client createClient() const;
         [[nodiscard]] std::string buildRequestString(const std::string& requestString) const;
         std::string getResponseString(std::string requestString, Reply reply = Reply::Decrypt);
+        [[nodiscard]] std::optional<std::string> downloadFile(const std::string& parameters);
         [[nodiscard]] std::string encrypt(const std::string& requestString) const;
         [[nodiscard]] std::string decrypt(const std::string& encryptedResponse) const;
         void clearSession();
@@ -81,6 +84,8 @@ namespace ict::core
         bool restartAllModules();
         bool restartController();
         [[nodiscard]] std::optional<std::string> downloadBackup();
+        [[nodiscard]] std::optional<std::string> downloadEventLog(const std::string& startDate = "",
+                                                                  const std::string& endDate = "");
         [[nodiscard]] std::optional<KeyValueList> sendRequest(RequestType type,
                                                               const std::string& subType,
                                                               const KeyValueList& params = {});

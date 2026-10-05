@@ -4,8 +4,13 @@
 
 #include "helpers.h"
 
+#include <algorithm>
+#include <cctype>
 #include <cstddef>
+#include <cstdlib>
+#include <filesystem>
 #include <iomanip>
+#include <memory>
 #include <sstream>
 #include <stdexcept>
 #include <string_view>
@@ -26,8 +31,16 @@ namespace ict::core
         return str.substr(first, last - first + 1);
     }
 
+    // Lowercase a string (ASCII only).
+    std::string toLower(std::string str)
+    {
+        std::ranges::transform(str, str.begin(),
+                               [](const unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+        return str;
+    }
+
     // Convert a byte string to a hex string.
-    std::string toHex(const std::vector<std::uint8_t>& bytes)
+    std::string toHex(const std::span<const std::uint8_t> bytes)
     {
         std::ostringstream oss;
         for (const auto& byte : bytes)
@@ -35,6 +48,20 @@ namespace ict::core
             oss << std::uppercase << std::hex << std::setw(2) << std::setfill('0') << static_cast<unsigned>(byte);
         }
         return oss.str();
+    }
+
+    // Format a hex fingerprint for display, a colon between each byte ("AB12CD" -> "AB:12:CD").
+    std::string formatFingerprint(const std::string& hex)
+    {
+        std::string formatted;
+        formatted.reserve(hex.size() * 3 / 2);
+        for (std::size_t i = 0; i < hex.size(); i += 2)
+        {
+            if (i > 0)
+                formatted += ':';
+            formatted += hex.substr(i, 2);
+        }
+        return formatted;
     }
 
     // Convert a hex string to a byte string.
@@ -57,19 +84,32 @@ namespace ict::core
     {
         unsigned char digest[EVP_MAX_MD_SIZE];
         unsigned int digestLength = 0;
-        EVP_MD_CTX* ctx = EVP_MD_CTX_new();
+        const std::unique_ptr<EVP_MD_CTX, decltype(&EVP_MD_CTX_free)> ctx(EVP_MD_CTX_new(), &EVP_MD_CTX_free);
         if (!ctx)
         {
             throw std::runtime_error("Failed to create EVP context");
         }
-        if (EVP_DigestInit_ex(ctx, EVP_sha1(), nullptr) != 1
-            || EVP_DigestUpdate(ctx, inputString.data(), inputString.size()) != 1
-            || EVP_DigestFinal_ex(ctx, digest, &digestLength) != 1)
+        if (EVP_DigestInit_ex(ctx.get(), EVP_sha1(), nullptr) != 1
+            || EVP_DigestUpdate(ctx.get(), inputString.data(), inputString.size()) != 1
+            || EVP_DigestFinal_ex(ctx.get(), digest, &digestLength) != 1)
         {
-            EVP_MD_CTX_free(ctx);
             throw std::runtime_error("Failed to compute SHA-1");
         }
-        EVP_MD_CTX_free(ctx);
-        return toHex(std::vector<std::uint8_t>(digest, digest + digestLength));
+        return toHex(std::span(digest, digestLength));   // The first digestLength bytes of 'digest'.
+    }
+
+    // Where wxclient keeps its state (logs, trusted certificates), regardless of the process's cwd.
+    std::filesystem::path stateDirectory()
+    {
+        #ifdef _WIN32
+        #error "Windows support: resolve %LOCALAPPDATA%\\wxclient here once console.cpp no longer depends on termios."
+        #else
+        const char* xdgState = std::getenv("XDG_STATE_HOME");
+        const char* home = std::getenv("HOME");
+        const std::filesystem::path base = (xdgState && *xdgState)
+            ? std::filesystem::path(xdgState)
+            : std::filesystem::path(home ? home : ".") / ".local" / "state";
+        return base / "wxclient";
+        #endif
     }
 }

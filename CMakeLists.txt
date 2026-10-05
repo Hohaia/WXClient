@@ -1,30 +1,41 @@
-cmake_minimum_required(VERSION 4.4)
-project(WXClient)
+cmake_minimum_required(VERSION 3.22...4.4)
+project(WXClient LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)   # Fail at configure time if the compiler can't do C++20.
+set(CMAKE_CXX_EXTENSIONS OFF)         # Standard C++20 (-std=c++20), not GNU extensions (-std=gnu++20).
+set(CMAKE_CXX_SCAN_FOR_MODULES OFF)   # No C++20 modules used; skip the per-file scan.
 
 add_compile_options(-Wall -Wextra -Werror=parentheses)
+
+# Which frontends to build (cmake -B build -DWXCLIENT_BUILD_GUI=ON).
+option(WXCLIENT_BUILD_CLI "Build the command-line client" ON)
+option(WXCLIENT_BUILD_GUI "Build the GUI client (stub, not functional yet)" OFF)
 
 find_package(OpenSSL REQUIRED)
 
 # shared CORE backend
 add_library(wxclient_core OBJECT
 
-        src/core/control.cpp
-        src/core/controller_api.cpp
-        src/core/helpers.cpp
-        src/core/logger.cpp
-        src/core/protocol.cpp
-        src/core/status.cpp
-        src/core/workflow.cpp
-
         include/core/control.h
         include/core/controller_api.h
+        include/core/file_transfer.h
         include/core/helpers.h
+        include/core/known_certificates.h
         include/core/logger.h
         include/core/protocol.h
         include/core/status.h
         include/core/workflow.h
+
+        src/core/control.cpp
+        src/core/controller_api.cpp
+        src/core/file_transfer.cpp
+        src/core/helpers.cpp
+        src/core/known_certificates.cpp
+        src/core/logger.cpp
+        src/core/protocol.cpp
+        src/core/status.cpp
+        src/core/workflow.cpp
 
         include/core/lookup/table_names.h
         include/core/lookup/command/area_control_tables.h
@@ -60,33 +71,37 @@ target_compile_definitions(wxclient_core PUBLIC
 )
 
 # CLI frontend
-add_executable(WXClient_CLI
-        src/frontend/cli/main.cpp
+if(WXCLIENT_BUILD_CLI)
+    add_executable(WXClient_CLI
+            src/frontend/cli/main.cpp
 
-        src/frontend/cli/console.cpp
-        src/frontend/cli/session.cpp
+            src/frontend/cli/console.cpp
+            src/frontend/cli/session.cpp
 
-        include/frontend/cli/console.h
-        include/frontend/cli/session.h
-)
-target_include_directories(WXClient_CLI PRIVATE
-        ${CMAKE_SOURCE_DIR}/include/frontend/cli
-)
-target_link_libraries(WXClient_CLI PRIVATE
-        wxclient_core
-)
+            include/frontend/cli/console.h
+            include/frontend/cli/session.h
+    )
+    target_include_directories(WXClient_CLI PRIVATE
+            ${CMAKE_SOURCE_DIR}/include/frontend/cli
+    )
+    target_link_libraries(WXClient_CLI PRIVATE
+            wxclient_core
+    )
+endif()
 
 # GUI frontend
-add_executable(WXClient_GUI
-        src/frontend/gui/main.cpp
+if(WXCLIENT_BUILD_GUI)
+    add_executable(WXClient_GUI
+            src/frontend/gui/main.cpp
 
-        src/frontend/gui/session.cpp
+            src/frontend/gui/session.cpp
 
-        include/frontend/gui/session.h
-)
-target_include_directories(WXClient_GUI PRIVATE
-        ${CMAKE_SOURCE_DIR}/include/frontend/gui
-)
-target_link_libraries(WXClient_GUI PRIVATE
-        wxclient_core
-)
+            include/frontend/gui/session.h
+    )
+    target_include_directories(WXClient_GUI PRIVATE
+            ${CMAKE_SOURCE_DIR}/include/frontend/gui
+    )
+    target_link_libraries(WXClient_GUI PRIVATE
+            wxclient_core
+    )
+endif()

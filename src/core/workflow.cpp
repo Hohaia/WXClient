@@ -4,17 +4,12 @@
 
 #include "workflow.h"
 
-#include <algorithm>
 #include <cctype>
-#include <cstdlib>
-#include <ctime>
-#include <fstream>
-#include <iomanip>
-#include <sstream>
+#include <exception>
 
 #include "controller_api.h"
 #include "helpers.h"
-#include "logger.h"
+#include "known_certificates.h"
 
 namespace ict::core
 {
@@ -31,95 +26,39 @@ namespace ict::core
                 items.emplace_back(recId, label);
             return items;
         }
-
-        // Today's date for file names, e.g. "04_Oct_2026".
-        std::string fileDate()
-        {
-            const std::time_t now = std::time(nullptr);
-            std::tm tm{};
-            localtime_r(&now, &tm);
-            std::ostringstream date;
-            date << std::put_time(&tm, "%d_%b_%Y");
-            return date.str();
-        }
-
-        // Write 'data' to directory/fileName, creating the directory if needed.
-        DownloadResult saveFile(const std::filesystem::path& directory, const std::string& fileName, const std::string& data)
-        {
-            std::error_code ec;
-            std::filesystem::create_directories(directory, ec);
-            if (ec)
-            {
-                const std::string error = "Could not create " + directory.string() + ": " + ec.message();
-                logMessage(LogLevel::Error, "saveFile", error);
-                return {std::nullopt, 0, error};
-            }
-            const std::filesystem::path filePath = directory / fileName;
-            std::ofstream out(filePath, std::ios::binary);
-            out.write(data.data(), static_cast<std::streamsize>(data.size()));
-            if (!out)
-            {
-                const std::string error = "Could not write " + filePath.string();
-                logMessage(LogLevel::Error, "saveFile", error);
-                return {std::nullopt, 0, error};
-            }
-            return {filePath, data.size(), ""};
-        }
     }
 
-    // Find the default folder to save downloads in.
-    std::optional<std::filesystem::path> defaultDownloadDirectory()
+    // Log in and fetch the controller's settings; an untrusted certificate is reported, not thrown.
+    LoginResult loginAndFetchSettings(ControllerApi& wx, const std::string& userName, const std::string& password)
     {
-        const char* home = std::getenv("HOME");
-        if (!home)
+        // Load this host's saved certificate once; a retry after trustCertificate() keeps the new one.
+        if (wx.trustedFingerprint().empty())
         {
-            logMessage(LogLevel::Error, "defaultDownloadDirectory", "HOME environment variable is not set");
-            return std::nullopt;
+            if (const auto saved = loadTrustedFingerprint(wx.host()))
+                wx.trustFingerprint(*saved);
         }
-        return std::filesystem::path(home) / "Downloads";
-    }
-
-    // Download a backup from the controller and save it in 'directory'.
-    DownloadResult saveBackup(ControllerApi& wx, const std::filesystem::path& directory)
-    {
-        const auto backup = wx.downloadBackup();
-        if (!backup)
-            return {std::nullopt, 0, wx.lastError()};
-        return saveFile(directory, "Db_" + wx.m_serialNumber + "_" + fileDate() + ".bak", *backup);
-    }
-
-    // Download the event log as CSV and save it in 'directory' (empty dates = no limit).
-    DownloadResult saveEventLog(ControllerApi& wx, const std::filesystem::path& directory,
-                                const std::string& startDate, const std::string& endDate)
-    {
-        const auto csv = wx.downloadEventLog(startDate, endDate);
-        if (!csv)
-            return {std::nullopt, 0, wx.lastError()};
-
-        // Header only: no events in the range (or dates the controller didn't understand); don't save an empty file.
-        const auto headerEnd = csv->find('\n');
-        if (headerEnd == std::string::npos || csv->find_first_not_of("\r\n", headerEnd) == std::string::npos)
-            return {std::nullopt, 0, "No events found for that range. Check the dates.", true};
-        return saveFile(directory, "Events_" + wx.m_serialNumber + "_" + fileDate() + ".csv", *csv);
-    }
-
-    // Log in, fetch the controllers settings (returns 'true' on successful login).
-    bool loginAndFetchSettings(ControllerApi& wx, const std::string& userName, const std::string& password)
-    {
-        auto passwordHash = sha1Hex(password);
-        std::ranges::transform(passwordHash, passwordHash.begin(),
-                               [](const unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
-        if (!wx.login(userName, passwordHash))
+        try
         {
-            return false;
+            if (!wx.login(userName, toLower(sha1Hex(password))))
+                return LoginResult::Failed;
         }
-        wx.m_settings = wx.sendRequest(RequestType::Detail, "GXT_CONTROLLERSETTINGS_TBL");
-        if (!wx.m_settings)
-            return true;   // Logged in, but no settings; the caller checks wx.m_settings.
-        const auto serialIt = std::ranges::find_if(*wx.m_settings,
-                              [](const auto& kv) { return kv.first == "SERIALNUMBER"; });
-        wx.m_serialNumber = serialIt != wx.m_settings->end() ? serialIt->second : "UNKNOWN";
-        return true;
+        catch (const std::exception&)
+        {
+            if (wx.untrustedFingerprint().empty())
+                throw;   // Any other transport error still reaches main().
+            return wx.trustedFingerprint().empty() ? LoginResult::UntrustedCertificate
+                                                   : LoginResult::CertificateChanged;
+        }
+        wx.fetchSettings();   // Logged in even if this fails; the caller checks wx.settings().
+        return LoginResult::LoggedIn;
+    }
+
+    // Trust the certificate the controller just presented, now and for future logins; false if it couldn't be saved.
+    bool trustCertificate(ControllerApi& wx)
+    {
+        const std::string fingerprint = wx.untrustedFingerprint();
+        wx.trustFingerprint(fingerprint);
+        return saveTrustedFingerprint(wx.host(), fingerprint);
     }
 
     // Look up a record list, fetching and caching it on first use; nullptr if the fetch failed.
@@ -150,7 +89,7 @@ namespace ict::core
         return statuses;
     }
 
-    // Fetch event descriptions ("Latest", "Previous", "Next": 20 a time, Update: all since last request); nullopt if the request failed.
+    // Fetch event descriptions ("Latest", "Previous", "Next": 20 at a time; "Update": all since the last request).
     std::optional<std::vector<std::string>> fetchEvents(ControllerApi& wx, EventRequest request)
     {
         const std::optional<KeyValueList> response = wx.sendRequest(RequestType::Events, toString(request));

@@ -52,7 +52,7 @@ namespace ict::core
 
     // 'Status 3 - Door Flag Bits' (as a StatusCodeLabel {bit, label} pair).
     constexpr std::array doorFlagBits{
-        StatusCodeLabel{0, "Calendar Action Live"}
+        StatusCodeLabel{0, "Calendar Action Active"}
     };
 
     // Door status fields ("0,3,0" -> 0: "Locked", 3: "Left Open", 0: [No Flags]).

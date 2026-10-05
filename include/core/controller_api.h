@@ -6,7 +6,8 @@
 #define WXCLIENT_CONTROLLERAPI_H
 
 #include <array>
-#include <cstdint> // IWYU pragma: keep
+#include <cstdint>  // IWYU pragma: keep
+#include <ctime>    // IWYU pragma: keep
 #include <httplib.h>
 #include <optional>
 #include <string>
@@ -20,10 +21,10 @@ namespace ict::core
     {
         enum class Reply {Decrypt, Raw}; // Raw: logout, backup and event export replies are never encrypted.
 
-        //variables
+        // Variables.
         static constexpr const char* m_path = "/PRT_CTRL_DIN_ISAPI.dll?";
-        static constexpr time_t requestTimeout = 5;     // Seconds; normal requests.
-        static constexpr time_t downloadTimeout = 300;  // Seconds; exports can take longer to build.
+        static constexpr std::time_t requestTimeout = 5;        // Seconds; normal requests.
+        static constexpr std::time_t downloadTimeout = 300;     // Seconds; exports can take longer to build.
         std::array<std::uint8_t, 16> m_aesKey{};
         std::string m_sessionCookie;
         std::string m_lastError;
@@ -33,13 +34,14 @@ namespace ict::core
         const bool m_isHttps;
         bool m_needsClientSessionId = false;
         bool m_loggedIn = false;
-        httplib::Client m_client;
-
-    public:
         std::optional<KeyValueList> m_settings;
         std::string m_serialNumber;
+        std::string m_trustedFingerprint;                       // SHA-256 of the cert the user accepted; empty = none yet.
+        std::string m_untrustedFingerprint;                     // Set when the controller presents a cert that isn't trusted.
+        httplib::Client m_client;                               // Keep last: createClient() reads m_host and m_isHttps.
 
-        //constructors and deconstructors
+    public:
+        // Constructors and destructors.
         ControllerApi(const std::string& host, const bool isHttps)
             : m_clientSessionId(generateSessionId())
             , m_host(cleanAddress(host))
@@ -66,8 +68,8 @@ namespace ict::core
                                                          const std::string& type,
                                                          const std::string& subType,
                                                          const KeyValueList& params);
-
-        [[nodiscard]] httplib::Client createClient() const;
+        [[nodiscard]] httplib::Client createClient();
+        [[nodiscard]] httplib::SSLVerifierResponse verifyCertificate(httplib::tls::session_t session);
         [[nodiscard]] std::string buildRequestString(const std::string& requestString) const;
         std::string getResponseString(std::string requestString, Reply reply = Reply::Decrypt);
         [[nodiscard]] std::optional<std::string> downloadFile(const std::string& parameters);
@@ -76,8 +78,15 @@ namespace ict::core
         void clearSession();
 
     public:
-        //functions
+        // Functions.
         [[nodiscard]] const std::string& lastError() const;
+        [[nodiscard]] const std::optional<KeyValueList>& settings() const;
+        [[nodiscard]] const std::string& serialNumber() const;
+        [[nodiscard]] const std::string& untrustedFingerprint() const;
+        [[nodiscard]] const std::string& host() const;
+        [[nodiscard]] const std::string& trustedFingerprint() const;
+        void trustFingerprint(const std::string& fingerprint);
+        bool fetchSettings();
         bool login(const std::string& userName,
                    const std::string& passwordHash);
         bool logout();

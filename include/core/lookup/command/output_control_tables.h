@@ -15,7 +15,7 @@ namespace ict::core
     constexpr std::array outputControlCommands{
         ControlCommand{0, "Deactivate"},
         ControlCommand{1, "Activate"},
-        ControlCommand{2, "Activate (timed)", "Activation Time"}, // Data1 = "Activation Time.
+        ControlCommand{2, "Activate (timed)", "Activation Time"}, // Data1 = "Activation Time".
         ControlCommand{3, "Cancel Conditional Exception"},
         ControlCommand{4, "Restore Conditional Exception"}
     };

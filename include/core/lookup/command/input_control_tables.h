@@ -14,7 +14,7 @@ namespace ict::core
     // 'Inputs' from 'control.md' (as a ControlCommand {code, label} pair).
     constexpr std::array inputControlCommands{
         ControlCommand{0, "Remove Bypass"},
-        ControlCommand{1, "Bypass"},
+        ControlCommand{1, "Bypass (until disarm)"},
         ControlCommand{2, "Bypass (latched)"}
     };
 }

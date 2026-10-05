@@ -1,5 +1,4 @@
 #include <exception>
-#include <iostream>
 
 #include "console.h"
 #include "logger.h"

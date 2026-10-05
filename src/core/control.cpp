@@ -6,6 +6,8 @@
 
 #include <algorithm>
 
+#include "control_command_tables.h"
+
 namespace ict::core
 {
     // Find the control commands for a table (empty if the table has none).

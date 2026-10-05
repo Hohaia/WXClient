@@ -5,12 +5,13 @@
 #include "logger.h"
 
 #include <chrono>
-#include <cstdlib>
-#include <ctime>
+#include <ctime>        // IWYU pragma: keep
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <sstream>
+
+#include "helpers.h"
 
 namespace ict::core
 {
@@ -46,32 +47,17 @@ namespace ict::core
         {
             const auto now = std::chrono::system_clock::now();
             const std::time_t t = std::chrono::system_clock::to_time_t(now);
-            std::tm tm;
+            std::tm tm{};
             localtime_r(&t, &tm);
             std::ostringstream oss;
             oss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
             return oss.str();
         }
-
-        //set the directory for logs.csv, regardless of the process's cwd
-        std::filesystem::path logDirectory()
-        {
-            #ifdef _WIN32
-            #error "Windows support: resolve %LOCALAPPDATA%\\wxclient here once console.cpp no longer depends on termios."
-            #else
-            const char* xdgState = std::getenv("XDG_STATE_HOME");
-            const char* home = std::getenv("HOME");
-            const std::filesystem::path base = (xdgState && *xdgState)
-                ? std::filesystem::path(xdgState)
-                : std::filesystem::path(home ? home : ".") / ".local" / "state";
-            return base / "wxclient";
-            #endif
-        }
     }
 
     std::filesystem::path logFilePath()
     {
-        const std::filesystem::path logDir = logDirectory();
+        const std::filesystem::path logDir = stateDirectory();
         std::error_code ec;
         std::filesystem::create_directories(logDir, ec);   // A failure shows up as the ofstream failing to open.
         return logDir / "logs.csv";

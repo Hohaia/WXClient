@@ -8,13 +8,11 @@
 #include <span>
 #include <string_view>
 
-#include "control_command_tables.h"
-
+#include "control_command_types.h"
 
 namespace ict::core
 {
     [[nodiscard]] std::span<const ControlCommand> findControlCommands(std::string_view name);
 }
-
 
 #endif //WXCLIENT_CONTROL_H

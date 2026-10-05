@@ -41,22 +41,25 @@ follows the portal header into the rest of `my.ict.co`.
 python3 tools/fetch_api_docs.py [path/to/mirror/my.ict.co/wxdllapidocs]
 ```
 
-| Output | Purpose |
-| --- | --- |
-| `docs/vendor/md/*.md` | one file per topic — the useful form for grep and Find in Files |
-| `docs/vendor/wxdllapidocs.md` | the same content concatenated, headings nested by TOC depth |
-| `docs/vendor/wxdllapidocs.pdf` | 324 pages, bookmarked, with the site's cross-references intact |
+| Output                         | Purpose                                                         |
+|--------------------------------|-----------------------------------------------------------------|
+| `docs/vendor/md/*.md`          | one file per topic — the useful form for grep and Find in Files |
+| `docs/vendor/wxdllapidocs.md`  | the same content concatenated, headings nested by TOC depth     |
+| `docs/vendor/wxdllapidocs.pdf` | 324 pages, bookmarked, with the site's cross-references intact  |
 
 ## Topics relevant to this client
 
-| Topic | Covers |
-| --- | --- |
-| `overview-authentication-server.md` | the flow implemented in `ControllerAPI.cpp` |
-| `overview-authentication-client.md` | the pre-4.00.1676 flow, not yet implemented |
-| `overview-authentication-migration.md` | differences between the two |
-| `overview-sessions.md` | `InitSession`, keep-alive, `CloseSession` |
-| `controller-settings.md` | `GXT_CONTROLLERSETTINGS_TBL`, the first planned data query |
-| `table-names.md` | the `SubType` values for CRUD operations |
+| Topic                                  | Covers                                                                  |
+|----------------------------------------|-------------------------------------------------------------------------|
+| `overview-authentication-server.md`    | the 4.00.1676+ flow, implemented in `controller_api.cpp`                |
+| `overview-authentication-client.md`    | the pre-4.00.1676 flow, also implemented (not yet tested on hardware)   |
+| `overview-authentication-migration.md` | differences between the two                                             |
+| `overview-sessions.md`                 | `InitSession`, keep-alive, `CloseSession`                               |
+| `controller-settings.md`               | `GXT_CONTROLLERSETTINGS_TBL`, fetched after login for the serial number |
+| `table-names.md`                       | the `SubType` values for CRUD operations                                |
+| `status.md`                            | status strings, decoded by the tables in `core/lookup/status/`          |
+| `control.md`                           | control commands, transcribed into `core/lookup/command/`               |
+| `events.md`                            | event requests (`Latest`/`Previous`/`Next`/`Update`) and the CSV export |
 
 ## Conversion notes
 

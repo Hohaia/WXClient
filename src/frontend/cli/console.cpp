@@ -4,6 +4,7 @@
 
 #include "console.h"
 
+#include <algorithm>
 #include <iostream>
 #include <optional>
 #include <stdexcept>
@@ -122,5 +123,36 @@ namespace ict::cli
     void waitForEnter()
     {
         readLine("\nPress [Enter] to continue...");
+    }
+
+    // Print a menu to the console and read a valid choice ("exit" after confirming a logout).
+    std::string printMenu(std::span<const MenuItem> menu, std::string_view title, const std::string& serialNumber)
+    {
+        std::cout << "\033[2J\033[H"; // Clear console, set cursor to top-left.
+        std::cout << "<<<<<" << title << ">>>>>\n";
+        std::cout << "Serial Number: " << serialNumber << "\n\n";
+        for (const auto& item : menu)
+        {
+            if (item.gapBefore)
+                std::cout << "\n";
+            if (item.key.empty())
+                std::cout << "\u2022  " << item.label << "\n"; // Info (read only) line (not selectable).
+            else
+                std::cout << item.key << ". " << item.label << "\n";
+        }
+        std::cout << "\nType \"exit\" to log out.\n";
+        while (true)
+        {
+            std::string choice = core::toLower(readLine("\nSelect: "));
+            if (choice == "exit")
+            {
+                if (readYesNo("\nAre you sure you want to log out? (y/n): "))
+                    return choice;
+                continue;
+            }
+            if (!choice.empty() && std::ranges::any_of(menu, [&choice](const MenuItem& item) { return item.key == choice; }))
+                return choice;
+            std::cout << "Please enter a valid choice.\n";
+        }
     }
 }

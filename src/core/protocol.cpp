@@ -9,7 +9,7 @@
 namespace ict::core
 {
     // Replace the characters the controller reserves in request values (see overview-api-requests.md).
-    std::string encodeStringValue(const std::string& value)
+    std::string encodeRequestValue(const std::string& value)
     {
         std::string encoded;
         encoded.reserve(value.size());
@@ -28,7 +28,7 @@ namespace ict::core
     }
 
     // Undo the controller's response delimiter swap: 0xE0 -> '&', 0xCD -> '=' (see overview-api-requests.md).
-    std::string decodeStringValue(const std::string& str)
+    std::string decodeResponseValue(const std::string& str)
     {
         std::string decoded;
         decoded.reserve(str.size());
@@ -44,7 +44,7 @@ namespace ict::core
         return decoded;
     }
 
-    // Split a encoded "key=value&key=value" string into decoded key/value pairs.
+    // Split an encoded "key=value&key=value" string into decoded key/value pairs.
     KeyValueList parseQueryString(const std::string& query)
     {
         KeyValueList params;
@@ -63,8 +63,8 @@ namespace ict::core
                 continue;
             }
             const auto separator = pair.find('=');
-            std::string key = decodeStringValue(separator == std::string::npos ? pair : pair.substr(0, separator));
-            std::string value = separator == std::string::npos ? std::string{} : decodeStringValue(pair.substr(separator + 1));
+            std::string key = decodeResponseValue(separator == std::string::npos ? pair : pair.substr(0, separator));
+            std::string value = separator == std::string::npos ? std::string{} : decodeResponseValue(pair.substr(separator + 1));
             params.emplace_back(trim(key), std::move(value));
         }
         return params;

@@ -6,18 +6,10 @@
 #define WXCLIENT_TABLE_NAMES_H
 
 #include <array>
-#include <string>
 #include <string_view>
 
 namespace ict::core
 {
-    // A single entry from a controller table (recId: "0", label: "Entry Door" [door @ address 0]).
-    struct RecordEntry
-    {
-        std::string recId;
-        std::string label;
-    };
-
     // Pairs a 'display name' with a controller's 'table name' (label: "Doors", name: "GXT_DOORS_TBL").
     struct TableInfo
     {
@@ -25,7 +17,7 @@ namespace ict::core
         std::string_view name;
     };
 
-    // An array of all of the controller tables (as a 'TableInfo' {label, name} pair).
+    // Every controller table as a {label, name} pair.
     constexpr std::array allTables{
         TableInfo{"Access Levels", "GXT_ACCESSLEVELS_TBL"},
         TableInfo{"Analog Expanders", "GXT_ANALOGEXPANDERS_TBL"},
@@ -44,9 +36,9 @@ namespace ict::core
         TableInfo{"Elevator Cars", "GXT_ELEVATORCARS_TBL"},
         TableInfo{"Elevator Groups", "GXT_ELEVATORGROUPS_TBL"},
         TableInfo{"Event Reports", "GXT_EVENTREPORTS_TBL"},
-        TableInfo{"Floor", "GXT_FLOORS_TBL"},
+        TableInfo{"Floors", "GXT_FLOORS_TBL"},
         TableInfo{"Floor Groups", "GXT_FLOORGROUPS_TBL"},
-        TableInfo{"Holiday Group", "GXT_HOLIDAYGROUPS_TBL"},
+        TableInfo{"Holiday Groups", "GXT_HOLIDAYGROUPS_TBL"},
         TableInfo{"Inputs", "GXT_INPUTS_TBL"},
         TableInfo{"Input Expanders", "GXT_INPUTEXPANDERS_TBL"},
         TableInfo{"Input Types", "GXT_INPUTTYPES_TBL"},

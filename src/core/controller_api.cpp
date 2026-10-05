@@ -8,23 +8,33 @@
 #include <cctype>
 #include <charconv>
 #include <cstdint>
+#include <memory>
 #include <stdexcept>
 #include <vector>
 #include <openssl/evp.h>
 #include <openssl/rand.h>
+#include <openssl/ssl.h>
+#include <openssl/x509.h>
 
 #include "helpers.h"
 #include "logger.h"
 
 namespace ict::core
 {
+    namespace
+    {
+        // An OpenSSL cipher context that frees itself on every return or throw.
+        using CipherContext = std::unique_ptr<EVP_CIPHER_CTX, decltype(&EVP_CIPHER_CTX_free)>;
+    }
+
     /* PRIVATE FUNCTIONS */
-    // Clean up the host address (remove any leading "http://, https://").
+    // Clean up the host address (lowercase, no "http://" or "https://", no trailing '/').
     std::string ControllerApi::cleanAddress(const std::string& address)
     {
-        std::string s = address;
-        for (const auto& prefix : { std::string("https://"), std::string("http://") }) {
-            if (s.rfind(prefix, 0) == 0)
+        std::string s = toLower(address);
+        for (const std::string_view prefix : {"https://", "http://"})
+        {
+            if (s.starts_with(prefix))
             {
                 s.erase(0, prefix.size());
                 break;
@@ -99,21 +109,43 @@ namespace ict::core
         if (!subType.empty())
             parameters += "&SubType=" + subType;
         for (const auto& [key, value] : params)
-            parameters += "&" + key + "=" + encodeStringValue(value);
+            parameters += "&" + key + "=" + encodeRequestValue(value);
         return parameters;
     }
 
     // Create the http client.
-    httplib::Client ControllerApi::createClient() const
+    httplib::Client ControllerApi::createClient()
     {
         const std::string cliDomain = std::string(m_isHttps ? "https" : "http") + "://" + m_host + "/";
         httplib::Client cli(cliDomain);
-        cli.enable_server_certificate_verification(false);
+        cli.enable_server_certificate_verification(false);   // Controllers use self-signed certs; pinned in verifyCertificate().
+        cli.set_session_verifier([this](httplib::tls::session_t session)
+                                    {return verifyCertificate(session);});
         cli.set_connection_timeout(requestTimeout);
         cli.set_read_timeout(requestTimeout);
         cli.set_write_timeout(requestTimeout);
         cli.set_keep_alive(true);
         return cli;
+    }
+
+    // Accept the controller's certificate only if its SHA-256 fingerprint is the trusted one.
+    httplib::SSLVerifierResponse ControllerApi::verifyCertificate(httplib::tls::session_t session)
+    {
+        using CertPtr = std::unique_ptr<X509, decltype(&X509_free)>;
+        const CertPtr cert(SSL_get1_peer_certificate(static_cast<SSL*>(session)), X509_free);
+        std::array<std::uint8_t, EVP_MAX_MD_SIZE> digest{};
+        unsigned int length = 0;
+        if (!cert || X509_digest(cert.get(), EVP_sha256(), digest.data(), &length) != 1)
+            return httplib::SSLVerifierResponse::CertificateRejected;
+
+        const std::string fingerprint = toHex(std::span(digest.data(), length));
+        if (fingerprint == m_trustedFingerprint)
+        {
+            m_untrustedFingerprint.clear();
+            return httplib::SSLVerifierResponse::CertificateAccepted;
+        }
+        m_untrustedFingerprint = fingerprint;
+        return httplib::SSLVerifierResponse::CertificateRejected;
     }
 
     // Build the request requestString depending on WX Controllers firmware version.
@@ -166,7 +198,8 @@ namespace ict::core
             m_sessionCookie = parseCookiePair(result->get_header_value("Set-Cookie"));
         }
         std::string response = result->body;
-        if (reply == Reply::Decrypt && m_loggedIn && !m_isHttps && !isFailResponse(response))
+        // An empty body means "nothing to return" (e.g. no events) and is sent unencrypted.
+        if (reply == Reply::Decrypt && m_loggedIn && !m_isHttps && !response.empty() && !isFailResponse(response))
         {
             response = decrypt(response);
         }
@@ -177,7 +210,7 @@ namespace ict::core
     // Encrypt a string.
     std::string ControllerApi::encrypt(const std::string& requestString) const
     {
-        EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+        const CipherContext ctx(EVP_CIPHER_CTX_new(), &EVP_CIPHER_CTX_free);
         if (!ctx)
         {
             throw std::runtime_error("Failed to create EVP cipher context");
@@ -185,34 +218,28 @@ namespace ict::core
         std::array<std::uint8_t, 16> iv{};
         if (RAND_bytes(iv.data(), static_cast<int>(iv.size())) != 1)
         {
-            EVP_CIPHER_CTX_free(ctx);
             throw std::runtime_error("Failed to generate Initialising Vector");
         }
-        if (EVP_EncryptInit_ex(ctx, EVP_aes_128_cbc(), nullptr, m_aesKey.data(), iv.data()) != 1)
+        if (EVP_EncryptInit_ex(ctx.get(), EVP_aes_128_cbc(), nullptr, m_aesKey.data(), iv.data()) != 1)
         {
-            EVP_CIPHER_CTX_free(ctx);
             throw std::runtime_error("Failed to initialize encryption");
         }
         std::vector<std::uint8_t> encryptedBytes(requestString.size() + 16);
         int encryptedLength = 0;
-        if (EVP_EncryptUpdate(ctx, encryptedBytes.data(), &encryptedLength
+        if (EVP_EncryptUpdate(ctx.get(), encryptedBytes.data(), &encryptedLength
                                 , reinterpret_cast<const unsigned char*>(requestString.data())
                                 , static_cast<int>(requestString.size())) != 1)
         {
-            EVP_CIPHER_CTX_free(ctx);
             throw std::runtime_error("Failed to encrypt data");
         }
         int finalLength = 0;
-        if (EVP_EncryptFinal_ex(ctx, encryptedBytes.data() + encryptedLength, &finalLength) != 1)
+        if (EVP_EncryptFinal_ex(ctx.get(), encryptedBytes.data() + encryptedLength, &finalLength) != 1)
         {
-            EVP_CIPHER_CTX_free(ctx);
             throw std::runtime_error("Failed to finalize encryption");
         }
-        EVP_CIPHER_CTX_free(ctx);
         encryptedLength += finalLength;
-        const auto encryptedData = std::vector<std::uint8_t>(encryptedBytes.begin(), encryptedBytes.begin() + encryptedLength);
-        const std::vector<std::uint8_t> ivBytes(iv.begin(), iv.end());
-        return toHex(ivBytes) + toHex(encryptedData);
+        // Only the first encryptedLength bytes hold ciphertext; the rest is spare padding room.
+        return toHex(iv) + toHex(std::span(encryptedBytes).first(static_cast<std::size_t>(encryptedLength)));
     }
 
     // Decrypt a string.
@@ -229,31 +256,27 @@ namespace ict::core
         const std::string encryptedStr = encryptedResponse.substr(32);
         const auto iv = fromHex(ivStr);
         const auto encryptedBytes = fromHex(encryptedStr);
-        EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+        const CipherContext ctx(EVP_CIPHER_CTX_new(), &EVP_CIPHER_CTX_free);
         if (!ctx)
         {
             throw std::runtime_error("Failed to create EVP cipher context");
         }
-        if (EVP_DecryptInit_ex(ctx, EVP_aes_128_cbc(), nullptr, m_aesKey.data(), iv.data()) != 1)
+        if (EVP_DecryptInit_ex(ctx.get(), EVP_aes_128_cbc(), nullptr, m_aesKey.data(), iv.data()) != 1)
         {
-            EVP_CIPHER_CTX_free(ctx);
             throw std::runtime_error("Failed to initialize decryption");
         }
         std::vector<std::uint8_t> decryptedBytes(encryptedBytes.size() + 16);
         int decryptedLength = 0;
-        if (EVP_DecryptUpdate(ctx, decryptedBytes.data(), &decryptedLength
+        if (EVP_DecryptUpdate(ctx.get(), decryptedBytes.data(), &decryptedLength
                                  , encryptedBytes.data(), static_cast<int>(encryptedBytes.size())) != 1)
         {
-            EVP_CIPHER_CTX_free(ctx);
             throw std::runtime_error("Failed to decrypt data");
         }
         int finalLength = 0;
-        if (EVP_DecryptFinal_ex(ctx, decryptedBytes.data() + decryptedLength, &finalLength) != 1)
+        if (EVP_DecryptFinal_ex(ctx.get(), decryptedBytes.data() + decryptedLength, &finalLength) != 1)
         {
-            EVP_CIPHER_CTX_free(ctx);
             throw std::runtime_error("Failed to finalize decryption");
         }
-        EVP_CIPHER_CTX_free(ctx);
         decryptedLength += finalLength;
         return {reinterpret_cast<const char*>(decryptedBytes.data())
                     , static_cast<std::string::size_type>(decryptedLength)};
@@ -278,6 +301,54 @@ namespace ict::core
     const std::string& ControllerApi::lastError() const
     {
         return m_lastError;
+    }
+
+    // Return the controller settings fetched by fetchSettings(); empty until a fetch succeeds.
+    const std::optional<KeyValueList>& ControllerApi::settings() const
+    {
+        return m_settings;
+    }
+
+    // Return the controller's serial number ("UNKNOWN" if the settings didn't include one).
+    const std::string& ControllerApi::serialNumber() const
+    {
+        return m_serialNumber;
+    }
+
+    // Return the fingerprint of a certificate the controller presented but isn't trusted; empty if none.
+    const std::string& ControllerApi::untrustedFingerprint() const
+    {
+        return m_untrustedFingerprint;
+    }
+
+    // Return the cleaned host address (e.g. "192.168.1.5:8443"), used as the trusted-certificate key.
+    const std::string& ControllerApi::host() const
+    {
+        return m_host;
+    }
+
+    // Return the fingerprint of the certificate trusted for this session; empty if none.
+    const std::string& ControllerApi::trustedFingerprint() const
+    {
+        return m_trustedFingerprint;
+    }
+
+    // Trust a certificate fingerprint (from untrustedFingerprint(), after the user accepts it).
+    void ControllerApi::trustFingerprint(const std::string& fingerprint)
+    {
+        m_trustedFingerprint = fingerprint;
+    }
+
+    // Fetch the controller settings and pick out the serial number.
+    bool ControllerApi::fetchSettings()
+    {
+        m_settings = sendRequest(RequestType::Detail, "GXT_CONTROLLERSETTINGS_TBL");
+        if (!m_settings)
+            return false;
+        const auto serialIt = std::ranges::find_if(*m_settings,
+                              [](const auto& kv) { return kv.first == "SERIALNUMBER"; });
+        m_serialNumber = serialIt != m_settings->end() ? serialIt->second : "UNKNOWN";
+        return true;
     }
 
     // Login to the WX controller.
@@ -453,4 +524,4 @@ namespace ict::core
         }
         return true;
     }
-} // ICT
+} // ict::core

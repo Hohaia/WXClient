@@ -8,8 +8,6 @@
 #include <string>
 #include <string_view>
 
-#include "protocol.h"
-
 namespace ict::cli
 {
     // A single cli menu line ([key: "1", label: "Doors"] -> 1. Doors; an empty key shows "•  label", not selectable).
@@ -23,7 +21,6 @@ namespace ict::cli
     std::string readLine(const std::string& prompt);
     bool readYesNo(const std::string& prompt);
     std::string readPassword(const std::string& prompt);
-    void printTable(const core::KeyValueList& table);
     void printError(const std::string& message);
     void waitForEnter();
     std::string printMenu(std::span<const MenuItem> menu, std::string_view title, const std::string& serialNumber);

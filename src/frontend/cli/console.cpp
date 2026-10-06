@@ -103,15 +103,6 @@ namespace ict::cli
         return password;
     }
 
-    // Print a table.
-    void printTable(const core::KeyValueList& table)
-    {
-        for (const auto& [key, value] : table)
-        {
-            std::cout << key << ": " << value << "\n";
-        }
-    }
-
     // Print an error message and the filepath to 'logs.csv'.
     void printError(const std::string& message)
     {

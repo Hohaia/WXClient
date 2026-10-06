@@ -371,7 +371,10 @@ namespace ict::cli
         if (result == core::LoginResult::UntrustedCertificate || result == core::LoginResult::CertificateChanged)
         {
             if (!confirmCertificate(wx.untrustedFingerprint(), result == core::LoginResult::CertificateChanged))
+            {
+                std::cout << "\nCertificate not trusted; not logging in.\n";
                 return 1;
+            }
             if (!core::trustCertificate(wx))
                 printError("Could not save the certificate; you'll be asked again next login.");
             result = core::loginAndFetchSettings(wx, userName, password);
@@ -388,8 +391,6 @@ namespace ict::cli
             return 1;
         }
         // NOTE: this is the main body of the programme.
-        printTable(*wx.settings());
-        waitForEnter();
         return cliMainMenu(wx);
     }
 }

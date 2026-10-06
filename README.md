@@ -155,7 +155,6 @@ A bare number in the body means transport and request form are correct.
   - Reverse proxy support. Core needs `isHttps` split into a client transport flag
     and a controller session-scheme flag (see Network path); the CLI keeps one prompt and sets both.
 - Uploads: CSV imports (e.g. user lists) and restoring `.bak` backups, in `file_transfer`.
-- Hardware verification: the pre-4.00.1676 flow and HTTPS certificate pinning are
-  implemented but untested.
+- Hardware verification: the pre-4.00.1676 flow is implemented but untested.
 - Windows: `console.cpp` is POSIX-only by design; a GUI would share only
   `core/`, where `stateDirectory()` (helpers) and `defaultDownloadDirectory` need Windows paths.

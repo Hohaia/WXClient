@@ -42,9 +42,9 @@ namespace ict::core
 
     public:
         // Constructors and destructors.
-        ControllerApi(const std::string& host, const bool isHttps)
+        ControllerApi(const std::string& host, const bool isHttps, const std::string& port = "")
             : m_clientSessionId(generateSessionId())
-            , m_host(cleanAddress(host))
+            , m_host(buildAddress(host, port))
             , m_isHttps(isHttps)
             , m_client(createClient())
         {
@@ -57,7 +57,7 @@ namespace ict::core
 
     private:
         // Functions.
-        [[nodiscard]] static std::string cleanAddress(const std::string& address);
+        [[nodiscard]] static std::string buildAddress(const std::string& address, const std::string& port);
         [[nodiscard]] static std::string xorToHex(const std::string& inputString,
                                                   std::uint32_t xorNumber);
         [[nodiscard]] static bool isFailResponse(const std::string& response);

@@ -91,6 +91,7 @@ endif()
 
 # GUI frontend
 if(WXCLIENT_BUILD_GUI)
+    find_package(Qt6 REQUIRED COMPONENTS Widgets)
     add_executable(WXClient_GUI
             src/frontend/gui/main.cpp
 
@@ -103,5 +104,7 @@ if(WXCLIENT_BUILD_GUI)
     )
     target_link_libraries(WXClient_GUI PRIVATE
             wxclient_core
+            Qt6::Widgets
     )
+    set_target_properties(WXClient_GUI PROPERTIES AUTOMOC ON)
 endif()

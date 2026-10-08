@@ -20,14 +20,15 @@ The GUI frontend is a stub.
 
 ## Requirements
 
-| Dependency     | Version    | Notes                                                               |
-|----------------|------------|---------------------------------------------------------------------|
-| CMake          | 3.22+      | tested up to 4.4                                                    |
-| C++ compiler   | C++20      | `std::ranges`, `std::span`, `starts_with`, `std::from_chars`        |
-| OpenSSL        | any recent | via `find_package(OpenSSL REQUIRED)`                                |
-| cpp-httplib    | 0.53.1     | vendored at `include/vendor/httplib/httplib.h`                      |
-| Linux          | —          | `termios`, `$HOME`, `localtime_r`; see [Roadmap](#roadmap)          |
-| Network path   | direct     | reverse proxy not yet supported; see [Network path](#network-path)  |
+| Dependency   | Version    | Notes                                                              |
+|--------------|------------|--------------------------------------------------------------------|
+| CMake        | 3.22+      | tested up to 4.4                                                   |
+| C++ compiler | C++20      | `std::ranges`, `std::span`, `starts_with`, `std::from_chars`       |
+| OpenSSL      | any recent | via `find_package(OpenSSL REQUIRED)`                               |
+| cpp-httplib  | 0.53.1     | vendored at `include/vendor/httplib/httplib.h`                     |
+| Qt           | 6.x        | GUI only (`-DWXCLIENT_BUILD_GUI=ON`); Widgets module               |
+| Linux        | —          | `termios`, `$HOME`, `localtime_r`; see [Roadmap](#roadmap)         |
+| Network path | direct     | reverse proxy not yet supported; see [Network path](#network-path) |
 
 `CPPHTTPLIB_OPENSSL_SUPPORT` is set in `CMakeLists.txt`; without it httplib
 rejects `https://` URLs at runtime rather than at compile time.
@@ -158,3 +159,11 @@ A bare number in the body means transport and request form are correct.
 - Hardware verification: the pre-4.00.1676 flow is implemented but untested.
 - Windows: `console.cpp` is POSIX-only by design; a GUI would share only
   `core/`, where `stateDirectory()` (helpers) and `defaultDownloadDirectory` need Windows paths.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+The GUI uses [Qt 6](https://www.qt.io/), licensed under the LGPLv3 and linked dynamically.
+
+The vendor protocol documentation in `docs/vendor/` belongs to ICT and is not covered by this licence.

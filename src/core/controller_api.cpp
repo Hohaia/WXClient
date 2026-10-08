@@ -28,8 +28,8 @@ namespace ict::core
     }
 
     /* PRIVATE FUNCTIONS */
-    // Clean up the host address (lowercase, no "http://" or "https://", no trailing '/').
-    std::string ControllerApi::cleanAddress(const std::string& address)
+    // Build the host address (lowercase, no "http://" or "https://", no trailing '/', ":<port>" if given).
+    std::string ControllerApi::buildAddress(const std::string& address, const std::string& port)
     {
         std::string s = toLower(address);
         for (const std::string_view prefix : {"https://", "http://"})
@@ -44,6 +44,8 @@ namespace ict::core
         {
             s.pop_back();
         }
+        if (!port.empty())
+            s.append(":" + port);
         return s;
     }
 

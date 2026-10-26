@@ -95,9 +95,9 @@ if(WXCLIENT_BUILD_GUI)
     add_executable(WXClient_GUI
             src/frontend/gui/main.cpp
 
-            src/frontend/gui/session.cpp
+            src/frontend/gui/login_window.cpp
 
-            include/frontend/gui/session.h
+            include/frontend/gui/login_window.h
     )
     target_include_directories(WXClient_GUI PRIVATE
             ${CMAKE_SOURCE_DIR}/include/frontend/gui

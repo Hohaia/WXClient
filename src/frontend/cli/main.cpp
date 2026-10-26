@@ -10,7 +10,7 @@ int main()
     {
         return ict::cli::runCli();
     }
-    catch (const std::exception& e)
+    catch (const std::exception &e)
     {
         ict::core::logMessage(ict::core::LogLevel::Error, "main", e.what());
         ict::cli::printError(e.what());

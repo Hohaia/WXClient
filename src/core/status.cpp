@@ -15,10 +15,10 @@ namespace ict::core
 {
     namespace
     {
-        const StatusCodeTable* findTable(std::string_view tableName)
+        const StatusCodeTable *findTable(std::string_view tableName)
         {
             const auto it = std::ranges::find_if(statusCodeTables,
-                            [&](const StatusCodeTable& table)
+                            [&](const StatusCodeTable &table)
                             { return table.name == tableName;});
             if (it == statusCodeTables.end())
                 return nullptr;
@@ -28,20 +28,20 @@ namespace ict::core
         std::optional<std::string_view> findLabel(std::span<const StatusCodeLabel> labels, const int code)
         {
             const auto it = std::ranges::find_if(labels,
-                            [code](const StatusCodeLabel& label) { return label.code == code; });
+                            [code](const StatusCodeLabel &label) { return label.code == code; });
             if (it == labels.end())
                 return std::nullopt;
             return it->label;
         }
 
-        std::string decodeValue(const StatusCodeField& field, const int code)
+        std::string decodeValue(const StatusCodeField &field, const int code)
         {
             if (const auto label = findLabel(field.labels, code))
                 return std::string(*label);
             return "Unknown (" + std::to_string(code) + ")";
         }
 
-        std::string decodeBits(const StatusCodeField& field, const int value)
+        std::string decodeBits(const StatusCodeField &field, const int value)
         {
             if (value == 0)
                 return "None";
@@ -59,10 +59,10 @@ namespace ict::core
             return text;
         }
 
-        std::string decodeField(const StatusCodeField& field, const std::string_view token)
+        std::string decodeField(const StatusCodeField &field, const std::string_view token)
         {
             int value = 0;
-            const auto* const end = token.data() + token.size();
+            const auto *const end = token.data() + token.size();
             const auto [ptr, ec] = std::from_chars(token.data(), end, value);
             if (ec != std::errc{} || ptr != end)
                 return std::string(token);
@@ -80,7 +80,7 @@ namespace ict::core
         std::vector<DecodedField> decoded;
         if (rawValue.empty())
             return decoded;
-        const StatusCodeTable* table = findTable(tableName);
+        const StatusCodeTable *table = findTable(tableName);
         std::size_t start = 0;
         for (std::size_t i = 0; start <= rawValue.size(); ++i)
         {
@@ -94,7 +94,7 @@ namespace ict::core
                 decoded.emplace_back("", std::string(token));
                 continue;
             }
-            const auto& field = table->fields[i];
+            const auto &field = table->fields[i];
             const bool isEmpty = field.type != StatusType::Value && token == "0";
             decoded.emplace_back(field.name, decodeField(field, token), isEmpty);
         }

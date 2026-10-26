@@ -22,7 +22,7 @@ namespace ict::cli
         class EchoGuard
         {
         public:
-            explicit EchoGuard(const termios& original)
+            explicit EchoGuard(const termios &original)
                 : m_original(original)
             {
             }
@@ -30,10 +30,10 @@ namespace ict::cli
             {
                 tcsetattr(STDIN_FILENO, TCSAFLUSH, &m_original);
             }
-            EchoGuard(const EchoGuard&) = delete;
-            EchoGuard& operator=(const EchoGuard&) = delete;
-            EchoGuard(EchoGuard&&) = delete;
-            EchoGuard& operator=(EchoGuard&&) = delete;
+            EchoGuard(const EchoGuard &) = delete;
+            EchoGuard &operator=(const EchoGuard &) = delete;
+            EchoGuard(EchoGuard &&) = delete;
+            EchoGuard &operator=(EchoGuard &&) = delete;
         private:
             termios m_original;
         };
@@ -51,14 +51,14 @@ namespace ict::cli
     }
 
     // Write a prompt and read a trimmed line of input.
-    std::string readLine(const std::string& prompt)
+    std::string readLine(const std::string &prompt)
     {
         std::cout << prompt << std::flush;
         return core::trim(readLineOrThrow());
     }
 
     // Write a prompt and read a y/n answer, repeating until one is given.
-    bool readYesNo(const std::string& prompt)
+    bool readYesNo(const std::string &prompt)
     {
         while (true)
         {
@@ -76,7 +76,7 @@ namespace ict::cli
     }
 
     // Write a prompt and read a line without echoing it to the terminal.
-    std::string readPassword(const std::string& prompt)
+    std::string readPassword(const std::string &prompt)
     {
         std::cout << prompt << std::flush;
 
@@ -104,7 +104,7 @@ namespace ict::cli
     }
 
     // Print an error message and the filepath to 'logs.csv'.
-    void printError(const std::string& message)
+    void printError(const std::string &message)
     {
         std::cout << "\n" << message << "\n";
         std::cout << "\nLog file: " << core::logFilePath().string() << "\n";
@@ -117,12 +117,12 @@ namespace ict::cli
     }
 
     // Print a menu to the console and read a valid choice ("exit" after confirming a logout).
-    std::string printMenu(std::span<const MenuItem> menu, std::string_view title, const std::string& serialNumber)
+    std::string printMenu(std::span<const MenuItem> menu, std::string_view title, const std::string &serialNumber)
     {
         std::cout << "\033[2J\033[H"; // Clear console, set cursor to top-left.
         std::cout << "<<<<<" << title << ">>>>>\n";
         std::cout << "Serial Number: " << serialNumber << "\n\n";
-        for (const auto& item : menu)
+        for (const auto &item : menu)
         {
             if (item.gapBefore)
                 std::cout << "\n";
@@ -141,7 +141,7 @@ namespace ict::cli
                     return choice;
                 continue;
             }
-            if (!choice.empty() && std::ranges::any_of(menu, [&choice](const MenuItem& item) { return item.key == choice; }))
+            if (!choice.empty() && std::ranges::any_of(menu, [&choice](const MenuItem &item) { return item.key == choice; }))
                 return choice;
             std::cout << "Please enter a valid choice.\n";
         }

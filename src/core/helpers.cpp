@@ -19,7 +19,7 @@
 namespace ict::core
 {
     // Remove leading and trailing whitespace from a string.
-    std::string trim(const std::string& str)
+    std::string trim(const std::string &str)
     {
         constexpr std::string_view whitespace = " \t\r\n";
         const auto first = str.find_first_not_of(whitespace);
@@ -43,7 +43,7 @@ namespace ict::core
     std::string toHex(const std::span<const std::uint8_t> bytes)
     {
         std::ostringstream oss;
-        for (const auto& byte : bytes)
+        for (const auto &byte : bytes)
         {
             oss << std::uppercase << std::hex << std::setw(2) << std::setfill('0') << static_cast<unsigned>(byte);
         }
@@ -51,7 +51,7 @@ namespace ict::core
     }
 
     // Format a hex fingerprint for display, a colon between each byte ("AB12CD" -> "AB:12:CD").
-    std::string formatFingerprint(const std::string& hex)
+    std::string formatFingerprint(const std::string &hex)
     {
         std::string formatted;
         formatted.reserve(hex.size() * 3 / 2);
@@ -65,7 +65,7 @@ namespace ict::core
     }
 
     // Convert a hex string to a byte string.
-    std::vector<std::uint8_t> fromHex(const std::string& hexStr)
+    std::vector<std::uint8_t> fromHex(const std::string &hexStr)
     {
         std::vector<std::uint8_t> bytes;
         bytes.reserve(hexStr.size() / 2);
@@ -80,7 +80,7 @@ namespace ict::core
     }
 
     // Create a sha1 checksum from a string.
-    std::string sha1Hex(const std::string& inputString)
+    std::string sha1Hex(const std::string &inputString)
     {
         unsigned char digest[EVP_MAX_MD_SIZE];
         unsigned int digestLength = 0;
@@ -104,8 +104,8 @@ namespace ict::core
         #ifdef _WIN32
         #error "Windows support: resolve %LOCALAPPDATA%\\wxclient here once console.cpp no longer depends on termios."
         #else
-        const char* xdgState = std::getenv("XDG_STATE_HOME");
-        const char* home = std::getenv("HOME");
+        const char *xdgState = std::getenv("XDG_STATE_HOME");
+        const char *home = std::getenv("HOME");
         const std::filesystem::path base = (xdgState && *xdgState)
             ? std::filesystem::path(xdgState)
             : std::filesystem::path(home ? home : ".") / ".local" / "state";

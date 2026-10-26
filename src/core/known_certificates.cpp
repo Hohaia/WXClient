@@ -24,7 +24,7 @@ namespace ict::core
     }
 
     // Look up the trusted certificate fingerprint for 'host'; nullopt if there isn't one.
-    std::optional<std::string> loadTrustedFingerprint(const std::string& host)
+    std::optional<std::string> loadTrustedFingerprint(const std::string &host)
     {
         std::ifstream file(knownCertificatesPath());
         std::string fileHost, fingerprint;
@@ -37,7 +37,7 @@ namespace ict::core
     }
 
     // Save 'fingerprint' as the trusted certificate for 'host', replacing any old one.
-    bool saveTrustedFingerprint(const std::string& host, const std::string& fingerprint)
+    bool saveTrustedFingerprint(const std::string &host, const std::string &fingerprint)
     {
         std::vector<std::pair<std::string, std::string>> entries;
         std::ifstream in(knownCertificatesPath());
@@ -53,7 +53,7 @@ namespace ict::core
         std::error_code ec;
         std::filesystem::create_directories(stateDirectory(), ec);   // A failure shows up as the ofstream failing.
         std::ofstream out(knownCertificatesPath(), std::ios::trunc);
-        for (const auto& [entryHost, entryFingerprint] : entries)
+        for (const auto &[entryHost, entryFingerprint] : entries)
             out << entryHost << ' ' << entryFingerprint << '\n';
         if (!out)
         {

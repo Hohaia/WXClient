@@ -22,7 +22,7 @@ namespace ict::core
         enum class Reply {Decrypt, Raw}; // Raw: logout, backup and event export replies are never encrypted.
 
         // Variables.
-        static constexpr const char* m_path = "/PRT_CTRL_DIN_ISAPI.dll?";
+        static constexpr const char *m_path = "/PRT_CTRL_DIN_ISAPI.dll?";
         static constexpr std::time_t requestTimeout = 5;        // Seconds; normal requests.
         static constexpr std::time_t downloadTimeout = 300;     // Seconds; exports can take longer to build.
         std::array<std::uint8_t, 16> m_aesKey{};
@@ -42,7 +42,7 @@ namespace ict::core
 
     public:
         // Constructors and destructors.
-        ControllerApi(const std::string& host, const bool isHttps, const std::string& port = "")
+        ControllerApi(const std::string &host, const bool isHttps, const std::string &port = "")
             : m_clientSessionId(generateSessionId())
             , m_host(buildAddress(host, port))
             , m_isHttps(isHttps)
@@ -50,57 +50,57 @@ namespace ict::core
         {
         }
         ~ControllerApi();
-        ControllerApi(const ControllerApi&) = delete;
-        ControllerApi& operator=(const ControllerApi&) = delete;
-        ControllerApi(ControllerApi&&) = delete;
-        ControllerApi& operator=(ControllerApi&&) = delete;
+        ControllerApi(const ControllerApi &) = delete;
+        ControllerApi &operator=(const ControllerApi &) = delete;
+        ControllerApi(ControllerApi &&) = delete;
+        ControllerApi &operator=(ControllerApi &&) = delete;
 
     private:
         // Functions.
-        [[nodiscard]] static std::string buildAddress(const std::string& address, const std::string& port);
-        [[nodiscard]] static std::string xorToHex(const std::string& inputString,
+        [[nodiscard]] static std::string buildAddress(const std::string &address, const std::string &port);
+        [[nodiscard]] static std::string xorToHex(const std::string &inputString,
                                                   std::uint32_t xorNumber);
-        [[nodiscard]] static bool isFailResponse(const std::string& response);
-        [[nodiscard]] static std::uint32_t parseSessionRandId(const std::string& response);
-        [[nodiscard]] static std::string parseCookiePair(const std::string& setCookieHeader);
+        [[nodiscard]] static bool isFailResponse(const std::string &response);
+        [[nodiscard]] static std::uint32_t parseSessionRandId(const std::string &response);
+        [[nodiscard]] static std::string parseCookiePair(const std::string &setCookieHeader);
         [[nodiscard]] static std::string generateSessionId();
-        [[nodiscard]] static std::string buildParameters(const std::string& kind,
-                                                         const std::string& type,
-                                                         const std::string& subType,
-                                                         const KeyValueList& params);
+        [[nodiscard]] static std::string buildParameters(const std::string &kind,
+                                                         const std::string &type,
+                                                         const std::string &subType,
+                                                         const KeyValueList &params);
         [[nodiscard]] httplib::Client createClient();
         [[nodiscard]] httplib::SSLVerifierResponse verifyCertificate(httplib::tls::session_t session);
-        [[nodiscard]] std::string buildRequestString(const std::string& requestString) const;
+        [[nodiscard]] std::string buildRequestString(const std::string &requestString) const;
         std::string getResponseString(std::string requestString, Reply reply = Reply::Decrypt);
-        [[nodiscard]] std::optional<std::string> downloadFile(const std::string& parameters);
-        [[nodiscard]] std::string encrypt(const std::string& requestString) const;
-        [[nodiscard]] std::string decrypt(const std::string& encryptedResponse) const;
+        [[nodiscard]] std::optional<std::string> downloadFile(const std::string &parameters);
+        [[nodiscard]] std::string encrypt(const std::string &requestString) const;
+        [[nodiscard]] std::string decrypt(const std::string &encryptedResponse) const;
         void clearSession();
 
     public:
         // Functions.
-        [[nodiscard]] const std::string& lastError() const;
-        [[nodiscard]] const std::optional<KeyValueList>& settings() const;
-        [[nodiscard]] const std::string& serialNumber() const;
-        [[nodiscard]] const std::string& untrustedFingerprint() const;
-        [[nodiscard]] const std::string& host() const;
-        [[nodiscard]] const std::string& trustedFingerprint() const;
-        void trustFingerprint(const std::string& fingerprint);
+        [[nodiscard]] const std::string &lastError() const;
+        [[nodiscard]] const std::optional<KeyValueList> &settings() const;
+        [[nodiscard]] const std::string &serialNumber() const;
+        [[nodiscard]] const std::string &untrustedFingerprint() const;
+        [[nodiscard]] const std::string &host() const;
+        [[nodiscard]] const std::string &trustedFingerprint() const;
+        void trustFingerprint(const std::string &fingerprint);
         bool fetchSettings();
-        bool login(const std::string& userName,
-                   const std::string& passwordHash);
+        bool login(const std::string &userName,
+                   const std::string &passwordHash);
         bool logout();
         bool restartAllModules();
         bool restartController();
         [[nodiscard]] std::optional<std::string> downloadBackup();
-        [[nodiscard]] std::optional<std::string> downloadEventLog(const std::string& startDate = "",
-                                                                  const std::string& endDate = "");
+        [[nodiscard]] std::optional<std::string> downloadEventLog(const std::string &startDate = "",
+                                                                  const std::string &endDate = "");
         [[nodiscard]] std::optional<KeyValueList> sendRequest(RequestType type,
-                                                              const std::string& subType,
-                                                              const KeyValueList& params = {});
+                                                              const std::string &subType,
+                                                              const KeyValueList &params = {});
         bool sendCommand(CommandType type,
-                         const std::string& subType = "",
-                         const KeyValueList& params = {});
+                         const std::string &subType = "",
+                         const KeyValueList &params = {});
     };
 }
 

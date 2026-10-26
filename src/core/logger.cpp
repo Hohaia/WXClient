@@ -18,7 +18,7 @@ namespace ict::core
     namespace
     {
         //wrap a field in quotes
-        std::string csvField(const std::string& field)
+        std::string csvField(const std::string &field)
         {
             std::string escaped;
             escaped.reserve(field.size() + 2);
@@ -65,7 +65,7 @@ namespace ict::core
 
 
     //append one row to logs.csv: timestamp,level,source,message
-    void logMessage(LogLevel level, const std::string& source, const std::string& message)
+    void logMessage(LogLevel level, const std::string &source, const std::string &message)
     {
         const std::filesystem::path path = logFilePath();
         std::error_code ec;

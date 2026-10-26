@@ -18,12 +18,12 @@ namespace ict::cli
         bool gapBefore = false;
     };
 
-    std::string readLine(const std::string& prompt);
-    bool readYesNo(const std::string& prompt);
-    std::string readPassword(const std::string& prompt);
-    void printError(const std::string& message);
+    std::string readLine(const std::string &prompt);
+    bool readYesNo(const std::string &prompt);
+    std::string readPassword(const std::string &prompt);
+    void printError(const std::string &message);
     void waitForEnter();
-    std::string printMenu(std::span<const MenuItem> menu, std::string_view title, const std::string& serialNumber);
+    std::string printMenu(std::span<const MenuItem> menu, std::string_view title, const std::string &serialNumber);
 }
 
 #endif //WXCLIENT_CONSOLE_H

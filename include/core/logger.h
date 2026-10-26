@@ -14,7 +14,7 @@ namespace ict::core
     enum class LogLevel {Info, Warning, Error};
 
     std::filesystem::path logFilePath();
-    void logMessage(LogLevel level, const std::string& source, const std::string& message);
+    void logMessage(LogLevel level, const std::string &source, const std::string &message);
 }
 
 #endif //WXCLIENT_LOGGER_H

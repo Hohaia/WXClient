@@ -14,7 +14,7 @@ namespace ict::core
     std::span<const ControlCommand> findControlCommands(std::string_view name)
     {
         const auto it = std::ranges::find_if(controlCommandTables,
-                                     [&](const ControlCommandTable& table)
+                                     [&](const ControlCommandTable &table)
                                      {return table.name == name;});
         if (it == controlCommandTables.end())
             return {};

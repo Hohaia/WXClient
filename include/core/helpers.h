@@ -13,12 +13,12 @@
 
 namespace ict::core
 {
-    [[nodiscard]] std::string trim(const std::string& str);
+    [[nodiscard]] std::string trim(const std::string &str);
     [[nodiscard]] std::string toLower(std::string str);
     [[nodiscard]] std::string toHex(std::span<const std::uint8_t> bytes);
-    [[nodiscard]] std::string formatFingerprint(const std::string& hex);
-    [[nodiscard]] std::vector<std::uint8_t> fromHex(const std::string& hexStr);
-    [[nodiscard]] std::string sha1Hex(const std::string& inputString);
+    [[nodiscard]] std::string formatFingerprint(const std::string &hex);
+    [[nodiscard]] std::vector<std::uint8_t> fromHex(const std::string &hexStr);
+    [[nodiscard]] std::string sha1Hex(const std::string &inputString);
     [[nodiscard]] std::filesystem::path stateDirectory();
 }
 

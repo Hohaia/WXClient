@@ -28,7 +28,7 @@ namespace ict::core
         }
 
         // Write 'data' to directory/fileName, creating the directory if needed.
-        DownloadResult saveFile(const std::filesystem::path& directory, const std::string& fileName, const std::string& data)
+        DownloadResult saveFile(const std::filesystem::path &directory, const std::string &fileName, const std::string &data)
         {
             std::error_code ec;
             std::filesystem::create_directories(directory, ec);
@@ -54,7 +54,7 @@ namespace ict::core
     // Find the default folder to save downloads in.
     std::optional<std::filesystem::path> defaultDownloadDirectory()
     {
-        const char* home = std::getenv("HOME");
+        const char *home = std::getenv("HOME");
         if (!home)
         {
             logMessage(LogLevel::Error, "defaultDownloadDirectory", "HOME environment variable is not set");
@@ -64,7 +64,7 @@ namespace ict::core
     }
 
     // Download a backup from the controller and save it in 'directory'.
-    DownloadResult saveBackup(ControllerApi& wx, const std::filesystem::path& directory)
+    DownloadResult saveBackup(ControllerApi &wx, const std::filesystem::path &directory)
     {
         const auto backup = wx.downloadBackup();
         if (!backup)
@@ -73,8 +73,8 @@ namespace ict::core
     }
 
     // Download the event log as CSV and save it in 'directory' (empty dates = no limit).
-    DownloadResult saveEventLog(ControllerApi& wx, const std::filesystem::path& directory,
-                                const std::string& startDate, const std::string& endDate)
+    DownloadResult saveEventLog(ControllerApi &wx, const std::filesystem::path &directory,
+                                const std::string &startDate, const std::string &endDate)
     {
         const auto csv = wx.downloadEventLog(startDate, endDate);
         if (!csv)

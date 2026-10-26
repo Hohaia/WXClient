@@ -21,9 +21,9 @@ namespace ict::core
     // Request&Type=Events&SubType=<EventRequest> ("Latest").
     enum class EventRequest {Latest, Previous, Next, Update};
 
-    [[nodiscard]] std::string encodeRequestValue(const std::string& value);
-    [[nodiscard]] std::string decodeResponseValue(const std::string& str);
-    [[nodiscard]] KeyValueList parseQueryString(const std::string& query);
+    [[nodiscard]] std::string encodeRequestValue(const std::string &value);
+    [[nodiscard]] std::string decodeResponseValue(const std::string &str);
+    [[nodiscard]] KeyValueList parseQueryString(const std::string &query);
     [[nodiscard]] std::string toString(RequestType type);
     [[nodiscard]] std::string toString(CommandType type);
     [[nodiscard]] std::string toString(EventRequest request);

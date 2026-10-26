@@ -10,8 +10,8 @@
 
 namespace ict::core
 {
-    std::optional<std::string> loadTrustedFingerprint(const std::string& host);
-    bool saveTrustedFingerprint(const std::string& host, const std::string& fingerprint);
+    std::optional<std::string> loadTrustedFingerprint(const std::string &host);
+    bool saveTrustedFingerprint(const std::string &host, const std::string &fingerprint);
 }
 
 #endif //WXCLIENT_KNOWN_CERTIFICATES_H

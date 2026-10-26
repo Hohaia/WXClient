@@ -51,7 +51,7 @@ namespace ict::cli
         };
 
         // Build a menu label with the item's live status, e.g. "Front Door  [Locked - Left Open]" (empty fields hidden).
-        std::string itemLabel(const core::RecordEntry& item, const std::optional<core::StatusMap>& statuses, std::string_view tableName)
+        std::string itemLabel(const core::RecordEntry &item, const std::optional<core::StatusMap> &statuses, std::string_view tableName)
         {
             if (!statuses)
                 return item.label;
@@ -59,7 +59,7 @@ namespace ict::cli
             if (it == statuses->end())
                 return item.label;
             std::string text;
-            for (const auto& field : core::decodeStatus(tableName, it->second))
+            for (const auto &field : core::decodeStatus(tableName, it->second))
             {
                 if (field.isEmpty)
                     continue;
@@ -71,7 +71,7 @@ namespace ict::cli
         }
 
         // Add a time to a date-only entry ("01-10-2026" -> "01-10-2026T00:00:00"); anything else is passed through.
-        std::string withTime(const std::string& date, const std::string& time)
+        std::string withTime(const std::string &date, const std::string &time)
         {
             if (date.size() != 10)
                 return date;
@@ -79,7 +79,7 @@ namespace ict::cli
         }
 
         // Show an untrusted certificate's fingerprint and ask whether to trust it.
-        bool confirmCertificate(const std::string& fingerprint, const bool changed)
+        bool confirmCertificate(const std::string &fingerprint, const bool changed)
         {
             if (changed)
                 std::cout << "\nWARNING: the controller's certificate has CHANGED since you last trusted it.\n"
@@ -92,7 +92,7 @@ namespace ict::cli
         }
 
         // Run a control menu for the selected record.
-        MenuResult cliCommandMenu(core::ControllerApi& wx, const core::TableInfo& table, const core::RecordEntry& record)
+        MenuResult cliCommandMenu(core::ControllerApi &wx, const core::TableInfo &table, const core::RecordEntry &record)
         {
             // Build the commands menu and handle a table with no commands.
             const auto commands = core::findControlCommands(table.name);
@@ -123,7 +123,7 @@ namespace ict::cli
                     return MenuResult::Back;
                 if (choice == "exit")
                     return MenuResult::Logout;
-                const auto& command = commands[std::stoi(choice) - 1];
+                const auto &command = commands[std::stoi(choice) - 1];
 
                 // Send a command via core (Control, name, RecId, Command).
                 core::KeyValueList params{{"RecId", record.recId}, {"Command", std::to_string(command.code)}};
@@ -141,23 +141,23 @@ namespace ict::cli
         }
 
         // Run a sub menu.
-        MenuResult cliSubMenu(core::ControllerApi& wx, core::RecordListCache& cachedRecordLists, const core::TableInfo& subMenu)
+        MenuResult cliSubMenu(core::ControllerApi &wx, core::RecordListCache &cachedRecordLists, const core::TableInfo &subMenu)
         {
-            const auto* fetched = core::getRecordList(wx, cachedRecordLists, std::string(subMenu.name));
+            const auto *fetched = core::getRecordList(wx, cachedRecordLists, std::string(subMenu.name));
             if (!fetched)
             {
                 printError("Could not load " + std::string(subMenu.label) + ": " + wx.lastError());
                 waitForEnter();
                 return MenuResult::Back;
             }
-            const auto& items = *fetched;
+            const auto &items = *fetched;
             const bool hasCommands = !core::findControlCommands(subMenu.name).empty();
             while (true)
             {
                 const auto statuses = core::fetchStatuses(wx, std::string(subMenu.name));
                 std::vector<std::string> labels;
                 labels.reserve(items.size());
-                for (const auto& item : items)
+                for (const auto &item : items)
                     labels.emplace_back(itemLabel(item, statuses, subMenu.name));
 
                 std::vector<MenuItem> display;
@@ -179,7 +179,7 @@ namespace ict::cli
         }
 
         // Download the event log as a .csv to the Downloads folder.
-        void cliDownloadEventLog(core::ControllerApi& wx)
+        void cliDownloadEventLog(core::ControllerApi &wx)
         {
             const auto directory = core::defaultDownloadDirectory();
             if (!directory)
@@ -211,7 +211,7 @@ namespace ict::cli
         }
 
         // Run the event log viewer, 20 events at a time.
-        MenuResult cliEventLog(core::ControllerApi& wx)
+        MenuResult cliEventLog(core::ControllerApi &wx)
         {
             auto request = core::EventRequest::Latest;
             while (true)
@@ -224,7 +224,7 @@ namespace ict::cli
                     return MenuResult::Back;
                 }
                 std::vector<MenuItem> display;
-                for (const auto& event : *events)
+                for (const auto &event : *events)
                     display.emplace_back("", event);
                 if (events->empty())
                     display.emplace_back("", "No events");
@@ -255,7 +255,7 @@ namespace ict::cli
         }
 
         // Download a backup to the Downloads folder.
-        void cliBackup(core::ControllerApi& wx)
+        void cliBackup(core::ControllerApi &wx)
         {
             const auto directory = core::defaultDownloadDirectory();
             if (!directory)
@@ -277,7 +277,7 @@ namespace ict::cli
         }
 
         // Restart all expansion modules.
-        void cliRestartModules(core::ControllerApi& wx)
+        void cliRestartModules(core::ControllerApi &wx)
         {
             if (!readYesNo("\nAre you sure you want to restart all modules? (y/n): "))
                 return;
@@ -292,7 +292,7 @@ namespace ict::cli
         }
 
         // Restart the controller.
-        bool cliRestart(core::ControllerApi& wx)
+        bool cliRestart(core::ControllerApi &wx)
         {
             if (!readYesNo("\nAre you sure you want to restart the Controller? (y/n): "))
                 return false;
@@ -308,12 +308,12 @@ namespace ict::cli
         }
 
         // Run the main menu.
-        int cliMainMenu(core::ControllerApi& wx)
+        int cliMainMenu(core::ControllerApi &wx)
         {
             core::RecordListCache cachedRecordLists;
             std::vector<MenuItem> display;
             int key = 1;
-            for (const auto& item : mainMenu)
+            for (const auto &item : mainMenu)
                 display.emplace_back(std::to_string(key++), item.label);
             while (true)
             {
@@ -323,7 +323,7 @@ namespace ict::cli
                 try
                 {
                     // Keys are 1..N in 'mainMenu' order, so the key is the index + 1.
-                    switch (const auto& selected = mainMenu[std::stoi(choice) - 1]; selected.action)
+                    switch (const auto &selected = mainMenu[std::stoi(choice) - 1]; selected.action)
                     {
                         case MainMenuAction::OpenSubMenu:
                             if (cliSubMenu(wx, cachedRecordLists, {selected.label, selected.tableName}) == MenuResult::Logout)
@@ -345,7 +345,7 @@ namespace ict::cli
                             return 0;
                     }
                 }
-                catch (const std::exception& e)
+                catch (const std::exception &e)
                 {
                     // Network errors (timeouts, dropped connections) end the session cleanly instead of crashing.
                     core::logMessage(core::LogLevel::Error, "cliMainMenu", e.what());

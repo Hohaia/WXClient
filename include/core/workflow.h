@@ -26,11 +26,11 @@ namespace ict::core
 
     enum class LoginResult {LoggedIn, Failed, UntrustedCertificate, CertificateChanged};    // How a login attempt ended.
 
-    LoginResult loginAndFetchSettings(ControllerApi& wx, const std::string& userName, const std::string& password);
-    bool trustCertificate(ControllerApi& wx);
-    const std::vector<RecordEntry>* getRecordList(ControllerApi& wx, RecordListCache& cache, const std::string& tableName);
-    std::optional<StatusMap> fetchStatuses(ControllerApi& wx, const std::string& tableName);
-    std::optional<std::vector<std::string>> fetchEvents(ControllerApi& wx, EventRequest request);
+    LoginResult loginAndFetchSettings(ControllerApi &wx, const std::string &userName, const std::string &password);
+    bool trustCertificate(ControllerApi &wx);
+    const std::vector<RecordEntry> *getRecordList(ControllerApi &wx, RecordListCache &cache, const std::string &tableName);
+    std::optional<StatusMap> fetchStatuses(ControllerApi &wx, const std::string &tableName);
+    std::optional<std::vector<std::string>> fetchEvents(ControllerApi &wx, EventRequest request);
 }
 
 #endif //WXCLIENT_WORKFLOW_H

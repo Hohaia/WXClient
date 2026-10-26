@@ -29,7 +29,7 @@ namespace ict::core
 
     /* PRIVATE FUNCTIONS */
     // Build the host address (lowercase, no "http://" or "https://", no trailing '/', ":<port>" if given).
-    std::string ControllerApi::buildAddress(const std::string& address, const std::string& port)
+    std::string ControllerApi::buildAddress(const std::string &address, const std::string &port)
     {
         std::string s = toLower(address);
         for (const std::string_view prefix : {"https://", "http://"})
@@ -50,7 +50,7 @@ namespace ict::core
     }
 
     // XOR each character with the next byte of xorNumber (lowest byte first, repeating), as hex.
-    std::string ControllerApi::xorToHex(const std::string& inputString, const std::uint32_t xorNumber)
+    std::string ControllerApi::xorToHex(const std::string &inputString, const std::uint32_t xorNumber)
     {
         std::vector<std::uint8_t> bytes;
         bytes.reserve(inputString.size());
@@ -63,7 +63,7 @@ namespace ict::core
     }
 
     // Determine if a controller response is a failure message.
-    bool ControllerApi::isFailResponse(const std::string& response)
+    bool ControllerApi::isFailResponse(const std::string &response)
     {
         const std::string trimmedResponse = trim(response);
         return trimmedResponse.starts_with("FAIL")
@@ -72,11 +72,11 @@ namespace ict::core
     }
 
     // Parse a session random ID from a controller response.
-    std::uint32_t ControllerApi::parseSessionRandId(const std::string& response)
+    std::uint32_t ControllerApi::parseSessionRandId(const std::string &response)
     {
         const std::string trimmedResponse = trim(response);
         std::uint32_t value = 0;
-        const auto* const end = trimmedResponse.data() + trimmedResponse.size();
+        const auto *const end = trimmedResponse.data() + trimmedResponse.size();
         const auto [ptr, ec] = std::from_chars(trimmedResponse.data(), end, value);
         if (ec != std::errc{} || ptr != end)
         {
@@ -86,7 +86,7 @@ namespace ict::core
     }
 
     // Extract the name=value pair from a Set-Cookie header value.
-    std::string ControllerApi::parseCookiePair(const std::string& setCookieHeader)
+    std::string ControllerApi::parseCookiePair(const std::string &setCookieHeader)
     {
         const auto attributes = setCookieHeader.find(';');
         return trim(attributes == std::string::npos ? setCookieHeader : setCookieHeader.substr(0, attributes));
@@ -104,13 +104,13 @@ namespace ict::core
     }
 
     // Build "<kind>&Type=<type>&SubType=<subType>&key=value..." with the values encoded.
-    std::string ControllerApi::buildParameters(const std::string& kind, const std::string& type
-                                             , const std::string& subType, const KeyValueList& params)
+    std::string ControllerApi::buildParameters(const std::string &kind, const std::string &type
+                                             , const std::string &subType, const KeyValueList &params)
     {
         std::string parameters = kind + "&Type=" + type;
         if (!subType.empty())
             parameters += "&SubType=" + subType;
-        for (const auto& [key, value] : params)
+        for (const auto &[key, value] : params)
             parameters += "&" + key + "=" + encodeRequestValue(value);
         return parameters;
     }
@@ -134,7 +134,7 @@ namespace ict::core
     httplib::SSLVerifierResponse ControllerApi::verifyCertificate(httplib::tls::session_t session)
     {
         using CertPtr = std::unique_ptr<X509, decltype(&X509_free)>;
-        const CertPtr cert(SSL_get1_peer_certificate(static_cast<SSL*>(session)), X509_free);
+        const CertPtr cert(SSL_get1_peer_certificate(static_cast<SSL *>(session)), X509_free);
         std::array<std::uint8_t, EVP_MAX_MD_SIZE> digest{};
         unsigned int length = 0;
         if (!cert || X509_digest(cert.get(), EVP_sha256(), digest.data(), &length) != 1)
@@ -151,7 +151,7 @@ namespace ict::core
     }
 
     // Build the request requestString depending on WX Controllers firmware version.
-    std::string ControllerApi::buildRequestString(const std::string& requestString) const
+    std::string ControllerApi::buildRequestString(const std::string &requestString) const
     {
         if (!m_needsClientSessionId)
         {
@@ -210,7 +210,7 @@ namespace ict::core
     }
 
     // Encrypt a string.
-    std::string ControllerApi::encrypt(const std::string& requestString) const
+    std::string ControllerApi::encrypt(const std::string &requestString) const
     {
         const CipherContext ctx(EVP_CIPHER_CTX_new(), &EVP_CIPHER_CTX_free);
         if (!ctx)
@@ -229,7 +229,7 @@ namespace ict::core
         std::vector<std::uint8_t> encryptedBytes(requestString.size() + 16);
         int encryptedLength = 0;
         if (EVP_EncryptUpdate(ctx.get(), encryptedBytes.data(), &encryptedLength
-                                , reinterpret_cast<const unsigned char*>(requestString.data())
+                                , reinterpret_cast<const unsigned char *>(requestString.data())
                                 , static_cast<int>(requestString.size())) != 1)
         {
             throw std::runtime_error("Failed to encrypt data");
@@ -245,7 +245,7 @@ namespace ict::core
     }
 
     // Decrypt a string.
-    std::string ControllerApi::decrypt(const std::string& encryptedResponse) const
+    std::string ControllerApi::decrypt(const std::string &encryptedResponse) const
     {
         if (encryptedResponse.size() < 32 ||
             encryptedResponse.size() % 2 != 0 ||
@@ -280,7 +280,7 @@ namespace ict::core
             throw std::runtime_error("Failed to finalize decryption");
         }
         decryptedLength += finalLength;
-        return {reinterpret_cast<const char*>(decryptedBytes.data())
+        return {reinterpret_cast<const char *>(decryptedBytes.data())
                     , static_cast<std::string::size_type>(decryptedLength)};
     }
 
@@ -300,43 +300,43 @@ namespace ict::core
     }
 
     // Return the message from the most recent failed call, for a frontend to display.
-    const std::string& ControllerApi::lastError() const
+    const std::string &ControllerApi::lastError() const
     {
         return m_lastError;
     }
 
     // Return the controller settings fetched by fetchSettings(); empty until a fetch succeeds.
-    const std::optional<KeyValueList>& ControllerApi::settings() const
+    const std::optional<KeyValueList> &ControllerApi::settings() const
     {
         return m_settings;
     }
 
     // Return the controller's serial number ("UNKNOWN" if the settings didn't include one).
-    const std::string& ControllerApi::serialNumber() const
+    const std::string &ControllerApi::serialNumber() const
     {
         return m_serialNumber;
     }
 
     // Return the fingerprint of a certificate the controller presented but isn't trusted; empty if none.
-    const std::string& ControllerApi::untrustedFingerprint() const
+    const std::string &ControllerApi::untrustedFingerprint() const
     {
         return m_untrustedFingerprint;
     }
 
     // Return the cleaned host address (e.g. "192.168.1.5:8443"), used as the trusted-certificate key.
-    const std::string& ControllerApi::host() const
+    const std::string &ControllerApi::host() const
     {
         return m_host;
     }
 
     // Return the fingerprint of the certificate trusted for this session; empty if none.
-    const std::string& ControllerApi::trustedFingerprint() const
+    const std::string &ControllerApi::trustedFingerprint() const
     {
         return m_trustedFingerprint;
     }
 
     // Trust a certificate fingerprint (from untrustedFingerprint(), after the user accepts it).
-    void ControllerApi::trustFingerprint(const std::string& fingerprint)
+    void ControllerApi::trustFingerprint(const std::string &fingerprint)
     {
         m_trustedFingerprint = fingerprint;
     }
@@ -348,13 +348,13 @@ namespace ict::core
         if (!m_settings)
             return false;
         const auto serialIt = std::ranges::find_if(*m_settings,
-                              [](const auto& kv) { return kv.first == "SERIALNUMBER"; });
+                              [](const auto &kv) { return kv.first == "SERIALNUMBER"; });
         m_serialNumber = serialIt != m_settings->end() ? serialIt->second : "UNKNOWN";
         return true;
     }
 
     // Login to the WX controller.
-    bool ControllerApi::login(const std::string& userName, const std::string& passwordHash)
+    bool ControllerApi::login(const std::string &userName, const std::string &passwordHash)
     {
         std::string parameters = "Command&Type=Session&SubType=InitSession";
         std::string sessionRandIdString = getResponseString(parameters);
@@ -421,7 +421,7 @@ namespace ict::core
             getResponseString(parameters, Reply::Raw);
             closed = true;
         }
-        catch (const std::exception& e)
+        catch (const std::exception &e)
         {
             logMessage(LogLevel::Warning, "ControllerApi::logout", e.what());
         }
@@ -448,7 +448,7 @@ namespace ict::core
             if (!sendCommand(CommandType::RestartController))
                 return false;
         }
-        catch (const std::exception& e)
+        catch (const std::exception &e)
         {
             // The controller can drop connection before replying "OK".
             logMessage(LogLevel::Warning, "ControllerApi::restartController", e.what());
@@ -458,12 +458,12 @@ namespace ict::core
     }
 
     // Download a file from the controller without decrypting it.
-    std::optional<std::string> ControllerApi::downloadFile(const std::string& parameters)
+    std::optional<std::string> ControllerApi::downloadFile(const std::string &parameters)
     {
         // Restore the normal read timeout on every exit, including exceptions.
         struct TimeoutGuard
         {
-            httplib::Client& client;
+            httplib::Client &client;
             ~TimeoutGuard() { client.set_read_timeout(requestTimeout); }
         } guard{m_client};
         m_client.set_read_timeout(downloadTimeout);
@@ -485,7 +485,7 @@ namespace ict::core
     }
 
     // Download events as CSV, optionally limited to a date range ("dd-mm-yyyyTHH:MM:SS").
-    std::optional<std::string> ControllerApi::downloadEventLog(const std::string& startDate, const std::string& endDate)
+    std::optional<std::string> ControllerApi::downloadEventLog(const std::string &startDate, const std::string &endDate)
     {
         KeyValueList params;
         if (!startDate.empty())
@@ -496,7 +496,7 @@ namespace ict::core
     }
 
     // Request a response table from the controller.
-    std::optional<KeyValueList> ControllerApi::sendRequest(const RequestType type, const std::string& subType, const KeyValueList& params)
+    std::optional<KeyValueList> ControllerApi::sendRequest(const RequestType type, const std::string &subType, const KeyValueList &params)
     {
         const std::string typeString = toString(type);
         const std::string parameters = buildParameters("Request", typeString, subType, params);
@@ -512,7 +512,7 @@ namespace ict::core
     }
 
     // Send a command to the controller.
-    bool ControllerApi::sendCommand(const CommandType type, const std::string& subType, const KeyValueList& params)
+    bool ControllerApi::sendCommand(const CommandType type, const std::string &subType, const KeyValueList &params)
     {
         const std::string typeString = toString(type);
         const std::string parameters = buildParameters("Command", typeString, subType, params);

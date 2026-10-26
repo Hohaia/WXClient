@@ -24,9 +24,9 @@ namespace ict::core
     };
 
     std::optional<std::filesystem::path> defaultDownloadDirectory();
-    DownloadResult saveBackup(ControllerApi& wx, const std::filesystem::path& directory);
-    DownloadResult saveEventLog(ControllerApi& wx, const std::filesystem::path& directory,
-                                const std::string& startDate, const std::string& endDate);
+    DownloadResult saveBackup(ControllerApi &wx, const std::filesystem::path &directory);
+    DownloadResult saveEventLog(ControllerApi &wx, const std::filesystem::path &directory,
+                                const std::string &startDate, const std::string &endDate);
 }
 
 #endif //WXCLIENT_FILE_TRANSFER_H
